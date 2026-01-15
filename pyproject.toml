@@ -25,9 +25,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/zim/ghostty-ambient"
-Repository = "https://github.com/zim/ghostty-ambient"
-Issues = "https://github.com/zim/ghostty-ambient/issues"
+Homepage = "https://github.com/gezibash/ghostty-ambient"
+Repository = "https://github.com/gezibash/ghostty-ambient"
+Issues = "https://github.com/gezibash/ghostty-ambient/issues"
 
 [project.optional-dependencies]
 windows = ["winsdk>=1.0.0b10"]
