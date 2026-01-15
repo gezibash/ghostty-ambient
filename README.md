@@ -1,6 +1,8 @@
-# ghostty-ambient
+# Ghostty Ambient
 
 Ambient light-aware theme selector for [Ghostty](https://ghostty.org/) with Bayesian preference learning.
+
+<img src="https://github.com/gezibash/ghostty-ambient/releases/download/v0.1.0/demo.gif" alt="ghostty-ambient demo" />
 
 ## Quick Install
 
