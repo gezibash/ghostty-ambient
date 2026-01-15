@@ -36,6 +36,12 @@ def _build_context(
     system_appearance: str | None = None,
     power_source: str | None = None,
     font: str | None = None,
+    sunrise: datetime | None = None,
+    sunset: datetime | None = None,
+    pressure: float | None = None,
+    cloud_cover: int | None = None,
+    uv_index: float | None = None,
+    dt: datetime | None = None,
 ) -> dict[str, Any]:
     """Build context dict for factor bucket calculation."""
     return {
@@ -45,6 +51,12 @@ def _build_context(
         "system_appearance": system_appearance,
         "power_source": power_source,
         "font": font,
+        "sunrise": sunrise,
+        "sunset": sunset,
+        "pressure": pressure,
+        "cloud_cover": cloud_cover,
+        "uv_index": uv_index,
+        "datetime": dt or datetime.now(),
     }
 
 
@@ -640,6 +652,11 @@ class History:
         background_hex: str | None = None,
         foreground_hex: str | None = None,
         palette_chromas: list[float] | None = None,
+        sunrise: datetime | None = None,
+        sunset: datetime | None = None,
+        pressure: float | None = None,
+        cloud_cover: int | None = None,
+        uv_index: float | None = None,
     ):
         """
         Record a snapshot observation (passive learning).
@@ -659,9 +676,17 @@ class History:
             background_hex: Theme background color hex (optional, for color learning)
             foreground_hex: Theme foreground color hex (optional, for contrast learning)
             palette_chromas: List of palette color chromas (optional, for chroma learning)
+            sunrise: Sunrise time (for circadian factor)
+            sunset: Sunset time (for circadian factor)
+            pressure: Atmospheric pressure in hPa
+            cloud_cover: Cloud cover percentage (0-100)
+            uv_index: UV index value
         """
         # Build context and get factor buckets via registry
-        context = _build_context(hour, lux, weather_code, system_appearance, power_source, font)
+        context = _build_context(
+            hour, lux, weather_code, system_appearance, power_source, font,
+            sunrise, sunset, pressure, cloud_cover, uv_index
+        )
         factors = FactorRegistry.get_all_buckets(context)
 
         # Only update alpha for observed theme (no beta updates)

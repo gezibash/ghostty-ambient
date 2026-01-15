@@ -215,6 +215,165 @@ class FontFactor(Factor):
         return font.lower().replace(" ", "_")
 
 
+class CircadianFactor(Factor):
+    """
+    Circadian rhythm factor based on proximity to sunrise/sunset.
+
+    Human hormone levels (melatonin, cortisol) shift based on solar position,
+    not clock time. This factor captures the biological relevance of light.
+
+    Buckets:
+        - night: More than 1hr after sunset or before sunrise
+        - pre_dawn: Within 1hr before sunrise (melatonin still high)
+        - golden_hour_morning: Within 30min of sunrise (warm light transition)
+        - solar_day: Full daylight (sunrise+30min to sunset-30min)
+        - golden_hour_evening: Within 30min of sunset (melatonin rising)
+        - twilight: Within 1hr after sunset (blue light sensitivity increases)
+    """
+
+    @property
+    def name(self) -> str:
+        return "circadian"
+
+    @property
+    def required_context_keys(self) -> set[str]:
+        return {"sunrise", "sunset"}
+
+    def get_bucket(self, context: dict[str, Any]) -> str:
+        now = context.get("datetime") or datetime.now()
+        sunrise = context.get("sunrise")
+        sunset = context.get("sunset")
+
+        if not sunrise or not sunset:
+            return "unknown"
+
+        # Calculate minutes from sunrise/sunset
+        mins_since_sunrise = (now - sunrise).total_seconds() / 60
+        mins_until_sunset = (sunset - now).total_seconds() / 60
+
+        if mins_since_sunrise < -60:  # More than 1hr before sunrise
+            return "night"
+        elif mins_since_sunrise < 0:  # Within 1hr before sunrise
+            return "pre_dawn"
+        elif mins_since_sunrise < 30:  # First 30min after sunrise
+            return "golden_hour_morning"
+        elif mins_until_sunset > 30:  # Daytime
+            return "solar_day"
+        elif mins_until_sunset > -30:  # 30min before/after sunset
+            return "golden_hour_evening"
+        elif mins_until_sunset > -60:  # Up to 1hr after sunset
+            return "twilight"
+        else:
+            return "night"
+
+
+class PressureFactor(Factor):
+    """
+    Atmospheric pressure factor.
+
+    Low pressure systems correlate with overcast/stormy conditions
+    and can affect mood. High pressure correlates with clear skies.
+
+    Buckets:
+        - low: < 1000 hPa (storm systems, overcast likely)
+        - normal: 1000-1020 hPa (standard conditions)
+        - high: > 1020 hPa (clear skies, bright conditions)
+    """
+
+    @property
+    def name(self) -> str:
+        return "pressure"
+
+    @property
+    def required_context_keys(self) -> set[str]:
+        return {"pressure"}
+
+    def get_bucket(self, context: dict[str, Any]) -> str:
+        pressure = context.get("pressure")
+        if pressure is None:
+            return "unknown"
+        if pressure < 1000:
+            return "low"
+        elif pressure <= 1020:
+            return "normal"
+        return "high"
+
+
+class CloudCoverFactor(Factor):
+    """
+    Cloud cover factor for granular sky conditions.
+
+    More granular than weather codes; directly affects ambient light levels.
+
+    Buckets (aviation-style):
+        - clear: 0-10% cloud cover
+        - few: 10-25% (mostly clear)
+        - scattered: 25-50% (partial clouds)
+        - broken: 50-85% (mostly cloudy)
+        - overcast: 85-100% (full cloud cover)
+    """
+
+    @property
+    def name(self) -> str:
+        return "clouds"
+
+    @property
+    def required_context_keys(self) -> set[str]:
+        return {"cloud_cover"}
+
+    def get_bucket(self, context: dict[str, Any]) -> str:
+        cloud_cover = context.get("cloud_cover")
+        if cloud_cover is None:
+            return "unknown"
+        if cloud_cover < 10:
+            return "clear"
+        elif cloud_cover < 25:
+            return "few"
+        elif cloud_cover < 50:
+            return "scattered"
+        elif cloud_cover < 85:
+            return "broken"
+        return "overcast"
+
+
+class UVIndexFactor(Factor):
+    """
+    UV index factor for harsh lighting conditions.
+
+    High UV correlates with intense, harsh lighting that may affect
+    preferred screen brightness and contrast.
+
+    Buckets:
+        - none: UV index 0 (night/heavy overcast)
+        - low: 1-2 (low exposure)
+        - moderate: 3-5 (moderate)
+        - high: 6-7 (high)
+        - extreme: 8+ (very high)
+    """
+
+    @property
+    def name(self) -> str:
+        return "uv"
+
+    @property
+    def required_context_keys(self) -> set[str]:
+        return {"uv_index"}
+
+    def get_bucket(self, context: dict[str, Any]) -> str:
+        uv_index = context.get("uv_index")
+        if uv_index is None:
+            return "unknown"
+        if uv_index < 1:
+            return "none"
+        elif uv_index < 3:
+            return "low"
+        elif uv_index < 6:
+            return "moderate"
+        elif uv_index < 8:
+            return "high"
+        return "extreme"
+
+
 def register_builtin_factors() -> None:
     """Register all built-in factors with the registry."""
     FactorRegistry.register(TimeFactor())
@@ -224,6 +383,11 @@ def register_builtin_factors() -> None:
     FactorRegistry.register(DayFactor())
     FactorRegistry.register(PowerFactor())
     FactorRegistry.register(FontFactor())
+    # Circadian & environmental factors
+    FactorRegistry.register(CircadianFactor())
+    FactorRegistry.register(PressureFactor())
+    FactorRegistry.register(CloudCoverFactor())
+    FactorRegistry.register(UVIndexFactor())
 
 
 # Auto-register on import

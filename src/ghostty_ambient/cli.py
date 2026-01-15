@@ -218,25 +218,50 @@ def show_sensors():
 
 
 def show_snapshots(history: History):
-    """Display recent learning snapshots."""
+    """Display recent learning snapshots in a rich table."""
+    from rich.console import Console
+    from rich.table import Table
+    from rich import box
+
+    console = Console()
     snapshots = history.data.get("recent_snapshots", [])
+
     if not snapshots:
-        print("No snapshots recorded yet.")
-        print("Run: ghostty-ambient --daemon")
+        console.print("[yellow]No snapshots recorded yet.[/]")
+        console.print("Run: [bold]ghostty-ambient --daemon[/]")
         return
 
-    print(f"Recent snapshots ({len(snapshots)} total):")
-    print()
+    table = Table(
+        title=f"Recent Snapshots ({len(snapshots)} total)",
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold cyan",
+        padding=(0, 1),
+        expand=True,
+    )
+    table.add_column("ts", style="dim", no_wrap=True, width=8)
+    table.add_column("theme", style="bold", no_wrap=True, width=20)
+    table.add_column("factors", no_wrap=False, ratio=1)
 
-    for snap in snapshots[-10:]:  # Show last 10
-        ts = snap["timestamp"][:16].replace("T", " ")
+    for snap in reversed(snapshots[-15:]):  # Show last 15, newest first
+        ts = snap["timestamp"][11:19]  # HH:MM:SS
         theme = snap["theme"]
-        factors = snap.get("factors", {})
-        factor_str = ", ".join(f"{k}={v}" for k, v in factors.items() if v != "unknown")
-        print(f"  {ts}  {theme}")
-        if factor_str:
-            print(f"           {factor_str}")
-    print()
+        f = snap.get("factors", {})
+
+        # Build compact factor string, skip unknowns
+        parts = []
+        for key in ["time", "lux", "weather", "system", "day", "power", "circadian", "pressure", "clouds", "uv"]:
+            val = f.get(key, "-")
+            if val and val != "-" and val != "unknown":
+                parts.append(f"[cyan]{key}[/]={val}")
+        # Font separate
+        font = f.get("font", "")
+        if font and font != "unknown":
+            parts.append(f"[dim]font={font}[/]")
+
+        table.add_row(ts, theme[:22], " ".join(parts))
+
+    console.print(table)
 
 
 def main():
@@ -255,6 +280,7 @@ def main():
     parser.add_argument("--undislike", action="store_true", help="Remove current theme from disliked")
     parser.add_argument("--sensors", action="store_true", help="Show available sensor backends")
     parser.add_argument("--reset-learning", action="store_true", help="Clear learned preferences and start fresh")
+    parser.add_argument("--clean", action="store_true", help="Clear recent snapshots (keeps learned preferences)")
     parser.add_argument("--ideal", action="store_true", help="Generate and apply optimal theme for current context")
     parser.add_argument("--daemon", action="store_true", help="Run background learning daemon")
     parser.add_argument("--interval", type=str, default="5m", help="Daemon snapshot interval (e.g., 30s, 5m, 1h)")
@@ -286,6 +312,16 @@ def main():
         print()
         print("Kept: favorites and disliked lists")
         print("Run the daemon to start fresh learning: ghostty-ambient --daemon")
+        return
+
+    # Clean recent snapshots only
+    if args.clean:
+        history = History()
+        count = len(history.data.get("recent_snapshots", []))
+        history.data["recent_snapshots"] = []
+        history._save()
+        print(f"Cleared {count} recent snapshots")
+        print("Learning preferences kept intact")
         return
 
     # Generate and apply ideal theme for current context
@@ -356,7 +392,7 @@ def main():
             print(f"Invalid interval: {args.interval}", file=sys.stderr)
             print("Use formats like: 30s, 5m, 1h, or plain seconds (300)", file=sys.stderr)
             sys.exit(1)
-        run_daemon(verbose=True, interval=interval)
+        run_daemon(interval=interval)
         return
 
     # Initialize history

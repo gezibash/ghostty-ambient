@@ -21,7 +21,7 @@ class MacOSALSBackend(SensorBackend):
     def __init__(self, als_path: Path | None = None):
         # Default to als binary in project root
         if als_path is None:
-            self._als_path = Path(__file__).parent.parent.parent.parent / "als"
+            self._als_path = Path(__file__).parent.parent.parent.parent.parent / "als"
         else:
             self._als_path = als_path
         self._calibration_factor = 1.0

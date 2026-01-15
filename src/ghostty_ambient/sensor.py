@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen
 
-# Path to ambient light sensor binary
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
+# Path to ambient light sensor binary (project root)
+SCRIPT_DIR = Path(__file__).resolve().parent.parent.parent
 ALS_BINARY = SCRIPT_DIR / "als"
 
 # Config paths
@@ -61,6 +61,8 @@ class WeatherData:
     cloud_cover: int | None = None
     sunrise: datetime | None = None
     sunset: datetime | None = None
+    pressure: float | None = None  # Surface pressure in hPa
+    uv_index: float | None = None  # UV index (daily max)
 
 
 @dataclass
@@ -242,6 +244,8 @@ def get_weather() -> WeatherData:
             cloud_cover=cached.get("cloud_cover"),
             sunrise=datetime.fromisoformat(cached["sunrise"]) if cached.get("sunrise") else None,
             sunset=datetime.fromisoformat(cached["sunset"]) if cached.get("sunset") else None,
+            pressure=cached.get("pressure"),
+            uv_index=cached.get("uv_index"),
         )
 
     config = load_config()
@@ -256,8 +260,8 @@ def get_weather() -> WeatherData:
         url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={lat}&longitude={lon}"
-            f"&current=temperature_2m,weather_code,is_day,cloud_cover"
-            f"&daily=sunrise,sunset"
+            f"&current=temperature_2m,weather_code,is_day,cloud_cover,surface_pressure"
+            f"&daily=sunrise,sunset,uv_index_max"
             f"&timezone=auto"
         )
         with urlopen(url, timeout=10) as response:
@@ -274,6 +278,11 @@ def get_weather() -> WeatherData:
             if daily.get("sunset"):
                 sunset = datetime.fromisoformat(daily["sunset"][0])
 
+            # Parse UV index (daily max)
+            uv_index = None
+            if daily.get("uv_index_max"):
+                uv_index = daily["uv_index_max"][0]
+
             # Parse weather code
             weather_code = current.get("weather_code")
             condition = WEATHER_CODES.get(weather_code, "Unknown")
@@ -287,6 +296,8 @@ def get_weather() -> WeatherData:
                 "cloud_cover": current.get("cloud_cover"),
                 "sunrise": sunrise.isoformat() if sunrise else None,
                 "sunset": sunset.isoformat() if sunset else None,
+                "pressure": current.get("surface_pressure"),
+                "uv_index": uv_index,
             }
             _save_weather_cache(cache_data)
 
@@ -298,6 +309,8 @@ def get_weather() -> WeatherData:
                 cloud_cover=current.get("cloud_cover"),
                 sunrise=sunrise,
                 sunset=sunset,
+                pressure=current.get("surface_pressure"),
+                uv_index=uv_index,
             )
     except Exception:
         return WeatherData()

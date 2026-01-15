@@ -4,7 +4,9 @@ Only learns when Ghostty is the frontmost application to avoid
 incorrect preferences from idle terminal windows.
 """
 
+import json
 import subprocess
+import sys
 import time
 from datetime import datetime
 
@@ -14,6 +16,9 @@ from .sensors import get_best_backend
 from .themes import get_current_font, get_current_theme
 
 DEFAULT_INTERVAL = 300  # 5 minutes
+
+# Auto-detect if running in interactive terminal
+IS_TTY = sys.stdout.isatty()
 
 
 def is_ghostty_active() -> bool:
@@ -143,28 +148,31 @@ def take_snapshot(history: History) -> dict | None:
         background_hex=background_hex,
         foreground_hex=foreground_hex,
         palette_chromas=palette_chromas,
+        sunrise=weather.sunrise,
+        sunset=weather.sunset,
+        pressure=weather.pressure,
+        cloud_cover=weather.cloud_cover,
+        uv_index=weather.uv_index,
     )
 
-    # Get factor buckets for display
-    from .history import (
-        get_day_bucket,
-        get_font_bucket,
-        get_lux_bucket,
-        get_power_bucket,
-        get_system_bucket,
-        get_time_bucket,
-        get_weather_bucket,
-    )
+    # Get factor buckets for display using registry (includes all 11 factors)
+    from .factors import FactorRegistry
 
-    factors = {
-        "time": get_time_bucket(now.hour),
-        "lux": get_lux_bucket(lux),
-        "weather": get_weather_bucket(weather.weather_code),
-        "system": get_system_bucket(system_appearance),
-        "day": get_day_bucket(),
-        "power": get_power_bucket(power_source),
-        "font": get_font_bucket(font),
+    context = {
+        "hour": now.hour,
+        "lux": lux,
+        "weather_code": weather.weather_code,
+        "system_appearance": system_appearance,
+        "power_source": power_source,
+        "font": font,
+        "sunrise": weather.sunrise,
+        "sunset": weather.sunset,
+        "pressure": weather.pressure,
+        "cloud_cover": weather.cloud_cover,
+        "uv_index": weather.uv_index,
+        "datetime": now,
     }
+    factors = FactorRegistry.get_all_buckets(context)
 
     return {
         "timestamp": now.isoformat(),
@@ -177,11 +185,56 @@ def take_snapshot(history: History) -> dict | None:
     }
 
 
-def run_daemon(verbose: bool = False, interval: int = DEFAULT_INTERVAL):
+def _log_json(level: str, msg: str, **kwargs) -> None:
+    """Output a JSON log line (Loki-style)."""
+    entry = {"ts": datetime.now().isoformat(), "level": level, "msg": msg, **kwargs}
+    print(json.dumps(entry, default=str), flush=True)
+
+
+def _log_pretty(level: str, msg: str, **kwargs) -> None:
+    """Output a human-readable log line with rich formatting."""
+    from rich.console import Console
+    console = Console()
+
+    ts = datetime.now().strftime("%H:%M:%S")
+    level_colors = {"info": "green", "error": "red", "warn": "yellow"}
+    color = level_colors.get(level, "white")
+
+    if msg == "daemon_started":
+        console.print(f"[dim]{ts}[/] [bold {color}]daemon started[/] interval={kwargs.get('interval_str', '?')}")
+    elif msg == "snapshot":
+        theme = kwargs.get("theme", "?")
+        lux = kwargs.get("lux")
+        factors = kwargs.get("factors", {})
+        lux_str = f"{lux:.0f}" if lux else "?"
+        # Show only non-unknown factors
+        factor_parts = [f"[cyan]{v}[/]" for k, v in factors.items() if v != "unknown"]
+        factor_str = " ".join(factor_parts)
+        console.print(f"[dim]{ts}[/] [bold]{theme}[/] [dim]lux={lux_str}[/] {factor_str}")
+    elif msg == "skipped":
+        console.print(f"[dim]{ts}[/] [yellow]skipped[/] ghostty inactive ({kwargs.get('skipped_count', 0)})")
+    elif msg == "snapshot_failed":
+        console.print(f"[dim]{ts}[/] [red]error[/] {kwargs.get('error', '?')}")
+    else:
+        console.print(f"[dim]{ts}[/] [{color}]{msg}[/] {kwargs}")
+
+
+def _log(level: str, msg: str, **kwargs) -> None:
+    """Log a message - pretty for TTY, JSON for pipes."""
+    if IS_TTY:
+        _log_pretty(level, msg, **kwargs)
+    else:
+        _log_json(level, msg, **kwargs)
+
+
+def run_daemon(interval: int = DEFAULT_INTERVAL):
     """Run the background learning daemon.
 
+    Auto-detects output format:
+    - TTY: Pretty human-readable output with colors
+    - Piped/redirected: Loki-style JSON lines
+
     Args:
-        verbose: Print status messages
         interval: Seconds between snapshots (default 300 = 5 min)
     """
     history = History()
@@ -195,11 +248,7 @@ def run_daemon(verbose: bool = False, interval: int = DEFAULT_INTERVAL):
     else:
         interval_str = f"{interval}s"
 
-    if verbose:
-        print("ghostty-ambient daemon started", flush=True)
-        print(f"Snapshot interval: {interval_str}", flush=True)
-        print("Only recording when Ghostty is frontmost...", flush=True)
-        print(flush=True)
+    _log("info", "daemon_started", interval=interval, interval_str=interval_str)
 
     # Calculate skip message frequency (roughly every hour)
     skip_log_every = max(1, 3600 // interval)
@@ -208,22 +257,19 @@ def run_daemon(verbose: bool = False, interval: int = DEFAULT_INTERVAL):
         try:
             snapshot = take_snapshot(history)
             if snapshot:
-                if verbose:
-                    factors = snapshot["factors"]
-                    factor_str = " | ".join(
-                        f"{v}" for k, v in factors.items() if v != "unknown"
-                    )
-                    lux = snapshot["raw"]["lux"]
-                    lux_str = f"{lux:.0f}lux" if lux else "?"
-                    print(f"[{snapshot['timestamp'][11:19]}] {snapshot['theme']}")
-                    print(f"         {factor_str} ({lux_str})", flush=True)
+                _log(
+                    "info",
+                    "snapshot",
+                    theme=snapshot["theme"],
+                    lux=snapshot["raw"]["lux"],
+                    factors=snapshot["factors"],
+                )
                 skipped = 0
             else:
                 skipped += 1
-                if verbose and skipped % skip_log_every == 1:
-                    print(f"[{datetime.now().isoformat()[:19]}] Ghostty not active, skipping...")
+                if skipped % skip_log_every == 1:
+                    _log("info", "skipped", reason="ghostty_inactive", skipped_count=skipped)
         except Exception as e:
-            if verbose:
-                print(f"Error: {e}")
+            _log("error", "snapshot_failed", error=str(e))
 
         time.sleep(interval)
