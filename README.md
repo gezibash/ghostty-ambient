@@ -7,7 +7,7 @@ Ambient light-aware theme selector for [Ghostty](https://ghostty.org/) with Baye
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zim/ghostty-ambient/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gezibash/ghostty-ambient/main/install.sh | bash
 ```
 
 This installs the package and sets up the learning daemon to run automatically.
@@ -179,7 +179,7 @@ systemctl --user restart ghostty-ambient
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zim/ghostty-ambient/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gezibash/ghostty-ambient/main/uninstall.sh | bash
 ```
 
 Your learned preferences are preserved in `~/.config/ghostty-ambient/`.
@@ -188,7 +188,7 @@ Your learned preferences are preserved in `~/.config/ghostty-ambient/`.
 
 ```bash
 # Clone and install dev dependencies
-git clone https://github.com/zim/ghostty-ambient
+git clone https://github.com/gezibash/ghostty-ambient
 cd ghostty-ambient
 uv sync --all-extras
 

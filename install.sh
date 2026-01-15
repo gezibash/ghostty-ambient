@@ -2,7 +2,7 @@
 set -e
 
 # ghostty-ambient installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/zim/ghostty-ambient/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/gezibash/ghostty-ambient/main/install.sh | bash
 
 echo "Installing ghostty-ambient..."
 echo

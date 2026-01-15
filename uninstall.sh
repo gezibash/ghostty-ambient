@@ -2,7 +2,7 @@
 set -e
 
 # ghostty-ambient uninstaller
-# Usage: curl -fsSL https://raw.githubusercontent.com/zim/ghostty-ambient/main/uninstall.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/gezibash/ghostty-ambient/main/uninstall.sh | bash
 
 echo "Uninstalling ghostty-ambient..."
 echo
