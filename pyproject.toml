@@ -21,6 +21,7 @@ dependencies = [
     "simple-term-menu>=1.6.0",
     "rich>=13.0.0",
     "numpy>=1.26.0",
+    "readchar>=4.0.0",
 ]
 
 [project.urls]

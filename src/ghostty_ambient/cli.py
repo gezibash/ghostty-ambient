@@ -271,7 +271,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--set", type=str, metavar="NAME", help="Set theme by name directly")
     parser.add_argument("--apply", type=str, metavar="N", help="Apply theme (1-5 for recommended, a-e for explore)")
-    parser.add_argument("--count", type=int, default=5, help="Number of recommendations")
+    parser.add_argument("--count", type=int, default=10, help="Number of recommendations")
     parser.add_argument("--lux", type=float, help="Override lux value (for testing)")
     parser.add_argument("--setup", action="store_true", help="Configure location")
     parser.add_argument("--favorite", action="store_true", help="Mark current theme as favorite")
@@ -651,8 +651,12 @@ def main():
         font=font,
     )
 
-    # Get recommendations
-    recommendations = [theme for _, theme in scored[:args.count]]
+    # Get recommendations with scores for UI
+    # Note: theme already has _final_score from scorer, but we also set _score for TUI
+    recommendations = []
+    for score, theme in scored[:args.count]:
+        theme["_score"] = score  # Score is already in ~0-100 range
+        recommendations.append(theme)
 
     # Apply mode
     if args.apply:
@@ -754,15 +758,32 @@ def main():
                 (t for t in themes if t["name"] == current_theme_name), None
             )
 
-        # Get explore themes (lowest-scoring = most different from usual preferences)
-        # Take from bottom of scored list, excluding disliked
+        # Get explore themes: well-scoring themes you haven't tried much
+        # These are "fresh discoveries" - good themes waiting to be explored
         explore = None
-        if len(scored) > args.count + 5:
-            # Get themes from the bottom (reverse order, skip last few which might be broken)
-            bottom_themes = [t for _, t in scored[-15:-2]]
-            # Filter out any that are in recommendations
+        if len(scored) > args.count + 5 and history:
+            top_score = scored[0][0] if scored else 100
+            threshold = top_score * 0.7  # Must score at least 70% of top
             rec_names = {r["name"] for r in recommendations}
-            explore = [t for t in bottom_themes if t["name"] not in rec_names][:5]
+
+            # Find themes that score well but have low choice count
+            candidates = []
+            for score, theme in scored:
+                if theme["name"] in rec_names:
+                    continue
+                if score < threshold:
+                    continue
+                choice_count = theme.get("_choice_count", 0)
+                # Prioritize rarely chosen themes
+                candidates.append((choice_count, score, theme))
+
+            # Sort by choice count (ascending), then by score (descending)
+            candidates.sort(key=lambda x: (x[0], -x[1]))
+
+            explore = []
+            for choice_count, score, theme in candidates[:10]:
+                theme["_score"] = score
+                explore.append(theme)
 
         # Build status header
         header = format_output(
@@ -772,7 +793,7 @@ def main():
         )
 
         # Show interactive picker with header
-        from .picker import pick_theme
+        from .tui import pick_theme
         selected = pick_theme(recommendations, explore, current_theme_name, header=header)
 
         if selected:
