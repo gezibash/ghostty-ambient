@@ -288,7 +288,36 @@ def main():
     parser.add_argument("--stats", action="store_true", help="Show learning statistics")
     parser.add_argument("--export-profile", type=str, metavar="FILE", help="Export learned preferences to file")
     parser.add_argument("--import-profile", type=str, metavar="FILE", help="Import learned preferences from file")
+    # Daemon management
+    parser.add_argument("--status", action="store_true", help="Show daemon status")
+    parser.add_argument("--start", action="store_true", help="Start the daemon")
+    parser.add_argument("--stop", action="store_true", help="Stop the daemon")
+    parser.add_argument("--restart", action="store_true", help="Restart the daemon")
+    parser.add_argument("--logs", action="store_true", help="Tail daemon logs")
+    parser.add_argument("--freq", type=str, default="5m", help="Snapshot interval for --start (e.g. 30s, 1m, 5m, 1h)")
     args = parser.parse_args()
+
+    # Daemon management commands
+    if args.status:
+        from .daemon_manager import daemon_status
+        daemon_status()
+        return
+    if args.start:
+        from .daemon_manager import daemon_start
+        daemon_start(freq=args.freq)
+        return
+    if args.stop:
+        from .daemon_manager import daemon_stop
+        daemon_stop()
+        return
+    if args.restart:
+        from .daemon_manager import daemon_restart
+        daemon_restart()
+        return
+    if args.logs:
+        from .daemon_manager import daemon_logs
+        daemon_logs()
+        return
 
     # Setup mode
     if args.setup:

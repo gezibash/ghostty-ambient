@@ -15,24 +15,28 @@ case "$OS" in
     *)      PLATFORM="unknown" ;;
 esac
 
-# Stop and remove daemon
+# Stop daemon using CLI if available
+if command -v ghostty-ambient &> /dev/null; then
+    echo "Stopping daemon..."
+    ghostty-ambient --stop 2>/dev/null || true
+fi
+
+# Remove daemon config files
 if [ "$PLATFORM" = "macos" ]; then
     PLIST_FILE="$HOME/Library/LaunchAgents/com.ghostty-ambient.daemon.plist"
     if [ -f "$PLIST_FILE" ]; then
-        echo "Stopping macOS daemon..."
         launchctl unload "$PLIST_FILE" 2>/dev/null || true
         rm -f "$PLIST_FILE"
-        echo "Daemon removed."
+        echo "Daemon config removed."
     fi
 elif [ "$PLATFORM" = "linux" ]; then
     SERVICE_FILE="$HOME/.config/systemd/user/ghostty-ambient.service"
     if [ -f "$SERVICE_FILE" ]; then
-        echo "Stopping Linux daemon..."
         systemctl --user stop ghostty-ambient 2>/dev/null || true
         systemctl --user disable ghostty-ambient 2>/dev/null || true
         rm -f "$SERVICE_FILE"
         systemctl --user daemon-reload
-        echo "Daemon removed."
+        echo "Daemon config removed."
     fi
 fi
 

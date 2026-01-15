@@ -65,7 +65,6 @@ Generates and applies a custom theme optimized for your current context, based o
 ghostty-ambient              # Interactive theme picker
 ghostty-ambient --ideal      # Generate and apply optimal theme
 ghostty-ambient --set NAME   # Set theme by name
-ghostty-ambient --daemon     # Run learning daemon
 ghostty-ambient --stats      # Show learned preferences
 ghostty-ambient --export-profile FILE  # Export preferences
 ghostty-ambient --import-profile FILE  # Import preferences
@@ -75,12 +74,22 @@ ghostty-ambient --sensors    # Show available light sensors
 ghostty-ambient --setup      # Configure location (for weather)
 ```
 
-### Daemon Options
+### Daemon Management
 
 ```bash
-ghostty-ambient --daemon --interval 5m   # Default: 5 minute snapshots
-ghostty-ambient --daemon --interval 30s  # More frequent (for testing)
-ghostty-ambient --daemon --interval 1h   # Less frequent
+ghostty-ambient --status              # Check daemon status
+ghostty-ambient --start               # Start daemon (5m interval)
+ghostty-ambient --start --freq 1m     # Start with custom interval
+ghostty-ambient --stop                # Stop daemon
+ghostty-ambient --restart             # Restart daemon
+ghostty-ambient --logs                # Tail daemon logs
+```
+
+### Run Daemon Inline
+
+```bash
+ghostty-ambient --daemon              # Run daemon in foreground
+ghostty-ambient --daemon --interval 30s  # Custom interval
 ```
 
 ## How It Works
@@ -149,31 +158,15 @@ clang -framework IOKit -framework CoreFoundation als.m -o als
 
 ## Daemon Management
 
-The install script sets up a background daemon that learns your preferences.
+The install script sets up a background daemon that learns your preferences. Use these commands to manage it:
 
-**macOS (launchd):**
 ```bash
-# View status
-launchctl list | grep ghostty-ambient
-
-# View logs
-tail -f ~/.local/share/ghostty-ambient/daemon.log
-
-# Restart
-launchctl unload ~/Library/LaunchAgents/com.ghostty-ambient.daemon.plist
-launchctl load ~/Library/LaunchAgents/com.ghostty-ambient.daemon.plist
-```
-
-**Linux (systemd):**
-```bash
-# View status
-systemctl --user status ghostty-ambient
-
-# View logs
-journalctl --user -u ghostty-ambient -f
-
-# Restart
-systemctl --user restart ghostty-ambient
+ghostty-ambient --status              # Check if daemon is running
+ghostty-ambient --start               # Start the daemon (default 5m interval)
+ghostty-ambient --start --freq 30s    # Start with custom interval
+ghostty-ambient --stop                # Stop the daemon
+ghostty-ambient --restart             # Restart the daemon
+ghostty-ambient --logs                # Tail daemon logs (Ctrl+C to exit)
 ```
 
 ## Uninstall

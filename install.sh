@@ -93,112 +93,13 @@ else
 fi
 echo
 
-# Set up daemon
-setup_macos_daemon() {
-    PLIST_DIR="$HOME/Library/LaunchAgents"
-    PLIST_FILE="$PLIST_DIR/com.ghostty-ambient.daemon.plist"
-
-    mkdir -p "$PLIST_DIR"
-
-    # Use the binary path we already found, or search again
-    if [ -z "$BINARY_PATH" ]; then
-        BINARY_PATH="$(which ghostty-ambient 2>/dev/null || echo "$BIN_DIR/ghostty-ambient")"
-    fi
-
-    if [ ! -x "$BINARY_PATH" ]; then
-        echo "Warning: Could not find ghostty-ambient binary"
-        echo "You may need to restart your shell and run the daemon manually:"
-        echo "  ghostty-ambient --daemon"
-        return
-    fi
-
-    cat > "$PLIST_FILE" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.ghostty-ambient.daemon</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$BINARY_PATH</string>
-        <string>--daemon</string>
-        <string>--interval</string>
-        <string>5m</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>$HOME/.local/share/ghostty-ambient/daemon.log</string>
-    <key>StandardErrorPath</key>
-    <string>$HOME/.local/share/ghostty-ambient/daemon.log</string>
-</dict>
-</plist>
-EOF
-
-    # Create log directory
-    mkdir -p "$HOME/.local/share/ghostty-ambient"
-
-    # Load the daemon
-    launchctl unload "$PLIST_FILE" 2>/dev/null || true
-    launchctl load "$PLIST_FILE"
-
-    echo "macOS daemon installed and started."
-    echo "  Config: $PLIST_FILE"
-    echo "  Logs:   $HOME/.local/share/ghostty-ambient/daemon.log"
-}
-
-setup_linux_daemon() {
-    SYSTEMD_DIR="$HOME/.config/systemd/user"
-    SERVICE_FILE="$SYSTEMD_DIR/ghostty-ambient.service"
-
-    mkdir -p "$SYSTEMD_DIR"
-
-    # Use the binary path we already found, or search again
-    if [ -z "$BINARY_PATH" ]; then
-        BINARY_PATH="$(which ghostty-ambient 2>/dev/null || echo "$BIN_DIR/ghostty-ambient")"
-    fi
-
-    if [ ! -x "$BINARY_PATH" ]; then
-        echo "Warning: Could not find ghostty-ambient binary"
-        echo "You may need to restart your shell and run the daemon manually:"
-        echo "  ghostty-ambient --daemon"
-        return
-    fi
-
-    cat > "$SERVICE_FILE" << EOF
-[Unit]
-Description=Ghostty Ambient Theme Daemon
-After=graphical-session.target
-
-[Service]
-Type=simple
-ExecStart=$BINARY_PATH --daemon --interval 5m
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=default.target
-EOF
-
-    # Reload and start
-    systemctl --user daemon-reload
-    systemctl --user enable ghostty-ambient
-    systemctl --user restart ghostty-ambient
-
-    echo "Linux systemd daemon installed and started."
-    echo "  Config: $SERVICE_FILE"
-    echo "  Status: systemctl --user status ghostty-ambient"
-    echo "  Logs:   journalctl --user -u ghostty-ambient -f"
-}
-
+# Set up daemon using CLI
 echo "Setting up daemon..."
-if [ "$PLATFORM" = "macos" ]; then
-    setup_macos_daemon
-elif [ "$PLATFORM" = "linux" ]; then
-    setup_linux_daemon
+if [ -n "$BINARY_PATH" ] && [ -x "$BINARY_PATH" ]; then
+    "$BINARY_PATH" --start
+else
+    echo "Warning: Could not start daemon automatically."
+    echo "After restarting your shell, run: ghostty-ambient --start"
 fi
 
 echo
@@ -208,5 +109,10 @@ echo "Quick start:"
 echo "  ghostty-ambient              # Interactive theme picker"
 echo "  ghostty-ambient --ideal      # Generate optimal theme"
 echo "  ghostty-ambient --stats      # View learned preferences"
+echo
+echo "Daemon management:"
+echo "  ghostty-ambient --status     # Check daemon status"
+echo "  ghostty-ambient --logs       # View daemon logs"
+echo "  ghostty-ambient --restart    # Restart daemon"
 echo
 echo "The daemon is now learning your theme preferences in the background."
