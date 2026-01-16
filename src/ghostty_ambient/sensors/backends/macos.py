@@ -59,9 +59,7 @@ class MacOSALSBackend(SensorBackend):
                     raw_value=raw,
                     confidence=0.95,
                 )
-            return SensorReading(
-                error=f"als returned {result.returncode}: {result.stderr.strip()}"
-            )
+            return SensorReading(error=f"als returned {result.returncode}: {result.stderr.strip()}")
         except subprocess.TimeoutExpired:
             return SensorReading(error="Timeout reading ALS")
         except ValueError as e:

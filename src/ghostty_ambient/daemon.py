@@ -108,6 +108,7 @@ def take_snapshot(history: History) -> dict | None:
 
     # Get theme's full properties for learning
     from .themes import get_theme_properties, load_all_themes
+
     all_themes = load_all_themes()
     theme_dict = next((t for t in all_themes if t["name"] == theme), None)
 
@@ -184,6 +185,7 @@ def _log_json(level: str, msg: str, **kwargs) -> None:
 def _log_pretty(level: str, msg: str, **kwargs) -> None:
     """Output a human-readable log line with rich formatting."""
     from rich.console import Console
+
     console = Console()
 
     ts = datetime.now().strftime("%H:%M:%S")

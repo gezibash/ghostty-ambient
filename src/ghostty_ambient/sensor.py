@@ -54,6 +54,7 @@ WEATHER_CODES = {
 @dataclass
 class WeatherData:
     """Weather data from Open-Meteo."""
+
     temperature: float | None = None
     weather_code: int | None = None
     condition: str = ""
@@ -68,6 +69,7 @@ class WeatherData:
 @dataclass
 class GeoLocation:
     """Geolocation data from IP lookup."""
+
     lat: float | None = None
     lon: float | None = None
     city: str | None = None
@@ -185,9 +187,7 @@ def load_config() -> dict:
 def get_lux() -> float | None:
     """Read ambient light sensor value in lux."""
     try:
-        result = subprocess.run(
-            [str(ALS_BINARY)], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run([str(ALS_BINARY)], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             return float(result.stdout.strip())
     except (subprocess.TimeoutExpired, ValueError, FileNotFoundError):
@@ -351,9 +351,7 @@ def lux_to_condition(lux: float) -> tuple[str, int, int]:
         return "sunlight", 200, 255
 
 
-def get_sun_phase(
-    now: datetime, sunrise: datetime | None, sunset: datetime | None
-) -> tuple[str, bool]:
+def get_sun_phase(now: datetime, sunrise: datetime | None, sunset: datetime | None) -> tuple[str, bool]:
     """Determine sun phase and whether to prefer dark themes."""
     if not sunrise or not sunset:
         return "unknown", False
@@ -361,7 +359,7 @@ def get_sun_phase(
     if now < sunrise:
         minutes_to_sunrise = (sunrise - now).seconds // 60
         if minutes_to_sunrise < 60:
-            return f"predawn", True
+            return "predawn", True
         return "night", True
     elif now > sunset:
         minutes_since_sunset = (now - sunset).seconds // 60
@@ -371,9 +369,7 @@ def get_sun_phase(
     else:
         minutes_since_sunrise = (now - sunrise).seconds // 60
         minutes_to_sunset = (sunset - now).seconds // 60
-        if minutes_since_sunrise < 60:
-            return "golden hour", False
-        elif minutes_to_sunset < 60:
+        if minutes_since_sunrise < 60 or minutes_to_sunset < 60:
             return "golden hour", False
         return "daytime", False
 

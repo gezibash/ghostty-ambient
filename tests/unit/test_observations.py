@@ -468,23 +468,27 @@ class TestObservationStoreWeightedMean:
 
         # Old observation
         old_emb = np.zeros(EMBEDDING_DIM, dtype=np.float32)
-        store.add(Observation(
-            timestamp=now - timedelta(days=30),
-            theme_name="Old",
-            embedding=old_emb,
-            context={},
-            source="picker",
-        ))
+        store.add(
+            Observation(
+                timestamp=now - timedelta(days=30),
+                theme_name="Old",
+                embedding=old_emb,
+                context={},
+                source="picker",
+            )
+        )
 
         # Recent observation
         new_emb = np.ones(EMBEDDING_DIM, dtype=np.float32) * 10
-        store.add(Observation(
-            timestamp=now - timedelta(hours=1),
-            theme_name="New",
-            embedding=new_emb,
-            context={},
-            source="picker",
-        ))
+        store.add(
+            Observation(
+                timestamp=now - timedelta(hours=1),
+                theme_name="New",
+                embedding=new_emb,
+                context={},
+                source="picker",
+            )
+        )
 
         mean, _ = store.compute_weighted_mean(half_life_days=7)
         # Mean should be closer to recent observation
@@ -496,13 +500,15 @@ class TestObservationStoreWeightedMean:
 
         # Two observations of equal value but different ages
         for days_ago in [0, 7]:
-            store.add(Observation(
-                timestamp=now - timedelta(days=days_ago),
-                theme_name=f"Theme {days_ago}",
-                embedding=np.ones(EMBEDDING_DIM, dtype=np.float32),
-                context={},
-                source="picker",
-            ))
+            store.add(
+                Observation(
+                    timestamp=now - timedelta(days=days_ago),
+                    theme_name=f"Theme {days_ago}",
+                    embedding=np.ones(EMBEDDING_DIM, dtype=np.float32),
+                    context={},
+                    source="picker",
+                )
+            )
 
         # With 7-day half-life, older should have half the weight
         _, weight = store.compute_weighted_mean(half_life_days=7)
@@ -513,22 +519,26 @@ class TestObservationStoreWeightedMean:
         now = datetime.now()
 
         # Night observation
-        store.add(Observation(
-            timestamp=now - timedelta(hours=1),
-            theme_name="Night",
-            embedding=np.ones(EMBEDDING_DIM, dtype=np.float32) * 10,
-            context={"time": "night"},
-            source="picker",
-        ))
+        store.add(
+            Observation(
+                timestamp=now - timedelta(hours=1),
+                theme_name="Night",
+                embedding=np.ones(EMBEDDING_DIM, dtype=np.float32) * 10,
+                context={"time": "night"},
+                source="picker",
+            )
+        )
 
         # Day observation
-        store.add(Observation(
-            timestamp=now - timedelta(hours=2),
-            theme_name="Day",
-            embedding=np.zeros(EMBEDDING_DIM, dtype=np.float32),
-            context={"time": "afternoon"},
-            source="picker",
-        ))
+        store.add(
+            Observation(
+                timestamp=now - timedelta(hours=2),
+                theme_name="Day",
+                embedding=np.zeros(EMBEDDING_DIM, dtype=np.float32),
+                context={"time": "afternoon"},
+                source="picker",
+            )
+        )
 
         # Filter for night
         mean, _ = store.compute_weighted_mean(context={"time": "night"})
@@ -567,13 +577,15 @@ class TestObservationStoreSerialization:
     def test_load_creates_parent_directories(self, tmp_path):
         path = tmp_path / "subdir" / "observations.json"
         store = ObservationStore()
-        store.add(Observation(
-            timestamp=datetime.now(),
-            theme_name="Test",
-            embedding=np.zeros(EMBEDDING_DIM, dtype=np.float32),
-            context={},
-            source="picker",
-        ))
+        store.add(
+            Observation(
+                timestamp=datetime.now(),
+                theme_name="Test",
+                embedding=np.zeros(EMBEDDING_DIM, dtype=np.float32),
+                context={},
+                source="picker",
+            )
+        )
         store.save(path)
         assert path.exists()
 

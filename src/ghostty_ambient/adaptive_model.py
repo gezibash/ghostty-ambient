@@ -21,11 +21,10 @@ from typing import Any
 
 import numpy as np
 
-from .bayesian_embedding import ContextualPosterior, EmbeddingPosterior
-from .embeddings import EMBEDDING_DIM, EmbeddingIndex, ThemeEmbedding
+from .bayesian_embedding import ContextualPosterior
+from .embeddings import EmbeddingIndex
 from .observations import Observation, ObservationStore
-from .phase_detector import Phase, PhaseDetector, PHASE_CONFIGS
-
+from .phase_detector import PHASE_CONFIGS, Phase, PhaseDetector
 
 # Storage version for migration
 STORAGE_VERSION = 3  # Bumped for Bayesian posterior addition
@@ -76,6 +75,7 @@ class AdaptivePreferenceModel:
         # Load embedding index from cache if available
         if use_embedding_cache:
             from .embedding_cache import load_embedding_cache
+
             self.embedding_index = load_embedding_cache(rebuild_if_stale=True, verbose=False)
         else:
             self.embedding_index = EmbeddingIndex()
@@ -399,6 +399,7 @@ class AdaptivePreferenceModel:
                 backup_path = path.with_suffix(".v1.bak")
                 if not backup_path.exists():
                     import shutil
+
                     shutil.copy(path, backup_path)
                     print(f"Backed up old history to {backup_path}")
 
@@ -415,11 +416,12 @@ class AdaptivePreferenceModel:
 
             return model
 
-        except (json.JSONDecodeError, KeyError) as e:
+        except (json.JSONDecodeError, KeyError):
             # Corrupted file - backup and start fresh
             backup_path = path.with_suffix(".corrupted.bak")
             if path.exists() and not backup_path.exists():
                 import shutil
+
                 shutil.copy(path, backup_path)
             return cls(history_path=path)
 

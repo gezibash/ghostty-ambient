@@ -98,26 +98,32 @@ class PhaseDetector:
         # EXPLORE: tends to stay, can move to CONVERGE
         # CONVERGE: sticky, moves to STABLE over time
         # STABLE: very sticky, requires sustained change to leave
-        self.A = np.array([
-            [0.80, 0.18, 0.02],  # From EXPLORE: sticky, rarely jumps to STABLE
-            [0.05, 0.75, 0.20],  # From CONVERGE: sticky, gradual to STABLE
-            [0.02, 0.08, 0.90],  # From STABLE: very sticky, hard to leave
-        ])
+        self.A = np.array(
+            [
+                [0.80, 0.18, 0.02],  # From EXPLORE: sticky, rarely jumps to STABLE
+                [0.05, 0.75, 0.20],  # From CONVERGE: sticky, gradual to STABLE
+                [0.02, 0.08, 0.90],  # From STABLE: very sticky, hard to leave
+            ]
+        )
 
         # Emission parameters (Gaussian per state per feature)
         # Features: [variance, model_distance, ideal_usage, unique_ratio]
         # Each state has mean and std for each feature
-        self.emission_means = np.array([
-            [0.8, 0.7, 0.1, 0.8],  # EXPLORE: high variance, high distance, low ideal, many unique
-            [0.4, 0.4, 0.3, 0.5],  # CONVERGE: medium values
-            [0.1, 0.2, 0.7, 0.2],  # STABLE: low variance, low distance, high ideal, few unique
-        ])
+        self.emission_means = np.array(
+            [
+                [0.8, 0.7, 0.1, 0.8],  # EXPLORE: high variance, high distance, low ideal, many unique
+                [0.4, 0.4, 0.3, 0.5],  # CONVERGE: medium values
+                [0.1, 0.2, 0.7, 0.2],  # STABLE: low variance, low distance, high ideal, few unique
+            ]
+        )
 
-        self.emission_stds = np.array([
-            [0.3, 0.3, 0.2, 0.2],  # EXPLORE
-            [0.2, 0.2, 0.2, 0.2],  # CONVERGE
-            [0.2, 0.2, 0.3, 0.2],  # STABLE
-        ])
+        self.emission_stds = np.array(
+            [
+                [0.3, 0.3, 0.2, 0.2],  # EXPLORE
+                [0.2, 0.2, 0.2, 0.2],  # CONVERGE
+                [0.2, 0.2, 0.3, 0.2],  # STABLE
+            ]
+        )
 
         # History of state beliefs for Viterbi
         self._belief = self.pi.copy()
@@ -165,10 +171,7 @@ class PhaseDetector:
         predicted = self.A.T @ self._belief
 
         # Emission
-        emissions = np.array([
-            self._emission_prob(i, feature_vec)
-            for i in range(self.n_states)
-        ])
+        emissions = np.array([self._emission_prob(i, feature_vec) for i in range(self.n_states)])
 
         # Update
         new_belief = predicted * emissions
@@ -188,10 +191,7 @@ class PhaseDetector:
 
     def phase_probabilities(self) -> dict[Phase, float]:
         """Return probability distribution over phases."""
-        return {
-            self.states[i]: float(self._belief[i])
-            for i in range(self.n_states)
-        }
+        return {self.states[i]: float(self._belief[i]) for i in range(self.n_states)}
 
     def get_config(self) -> PhaseConfig:
         """Get configuration for current phase."""

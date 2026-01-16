@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
-from ghostty_ambient.embeddings import EMBEDDING_DIM, EmbeddingIndex
 from ghostty_ambient.embedding_cache import (
     CACHE_VERSION,
     DEFAULT_CACHE_PATH,
@@ -18,6 +16,7 @@ from ghostty_ambient.embedding_cache import (
     load_embedding_cache,
     save_embedding_cache,
 )
+from ghostty_ambient.embeddings import EMBEDDING_DIM, EmbeddingIndex
 
 
 @pytest.fixture

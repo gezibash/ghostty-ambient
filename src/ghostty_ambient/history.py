@@ -7,14 +7,11 @@ phase-aware preference learning with embedding-based recommendations.
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .adaptive_model import AdaptivePreferenceModel, DEFAULT_HISTORY_PATH
-from .adaptive_scorer import build_context, score_themes_adaptive
-from .embeddings import ThemeEmbedding
-from .phase_detector import Phase
+from .adaptive_model import DEFAULT_HISTORY_PATH, AdaptivePreferenceModel
+from .adaptive_scorer import build_context
 
 
 class History:
@@ -177,8 +174,6 @@ class History:
     def reset_learning(self, keep_favorites: bool = True) -> dict[str, int]:
         """Reset learning data."""
         old_obs = len(self.model.observations)
-        old_favs = len(self.model.favorites)
-        old_disliked = len(self.model.disliked)
 
         # Clear observations
         self.model.observations = type(self.model.observations)()
@@ -227,9 +222,9 @@ class History:
 
     def show_stats(self) -> None:
         """Display learning statistics for v2 model."""
+        from rich import box
         from rich.console import Console
         from rich.table import Table
-        from rich import box
 
         console = Console()
         stats = self.model.get_stats()
@@ -251,7 +246,9 @@ class History:
         }
 
         console.print(f"[bold]Learning Phase:[/] [{phase_colors.get(phase, 'white')}]{phase.upper()}[/]")
-        console.print(f"  Explore: {probs.get('explore', 0):.0%}  Converge: {probs.get('converge', 0):.0%}  Stable: {probs.get('stable', 0):.0%}")
+        console.print(
+            f"  Explore: {probs.get('explore', 0):.0%}  Converge: {probs.get('converge', 0):.0%}  Stable: {probs.get('stable', 0):.0%}"
+        )
         console.print()
 
         # Confidence info

@@ -14,7 +14,7 @@ from .adaptive_model import AdaptivePreferenceModel
 from .factors import FactorRegistry
 
 if TYPE_CHECKING:
-    from .history import History
+    pass
 
 
 def build_context(

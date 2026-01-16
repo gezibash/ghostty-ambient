@@ -1,6 +1,5 @@
 """Rich-based theme picker with probability bars."""
 
-import sys
 import readchar
 from rich.console import Console
 from rich.padding import Padding
@@ -164,9 +163,7 @@ def pick_theme(
             if len(sections) > 1:
                 current_section = (current_section + 1) % len(sections)
                 cursor_idx = 0
-        elif char == "q" or char == readchar.key.ESC:
-            return "quit"
-        elif char == readchar.key.CTRL_C:
+        elif char == "q" or char == readchar.key.ESC or char == readchar.key.CTRL_C:
             return "quit"
 
         return None

@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from ghostty_ambient.bayesian_embedding import (
     DEFAULT_PRIOR_VAR,
-    OBSERVATION_VAR,
     ContextualPosterior,
     EmbeddingPosterior,
 )
@@ -212,10 +210,7 @@ class TestEmbeddingPosteriorSerialization:
         assert restored.observation_count == posterior.observation_count
 
     def test_from_observations(self):
-        embeddings = [
-            np.ones(EMBEDDING_DIM, dtype=np.float32) * i
-            for i in range(5)
-        ]
+        embeddings = [np.ones(EMBEDDING_DIM, dtype=np.float32) * i for i in range(5)]
         weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         posterior = EmbeddingPosterior.from_observations(embeddings, weights)
@@ -373,10 +368,7 @@ class TestContextualPosteriorSerialization:
         restored = ContextualPosterior.from_dict(data)
 
         # Check global restored
-        assert np.allclose(
-            restored.global_posterior.mean,
-            cp.global_posterior.mean
-        )
+        assert np.allclose(restored.global_posterior.mean, cp.global_posterior.mean)
 
         # Check contexts restored
         assert len(restored.posteriors) == len(cp.posteriors)

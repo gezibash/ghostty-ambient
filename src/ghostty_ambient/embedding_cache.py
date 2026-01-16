@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .embeddings import EMBEDDING_DIM, EmbeddingIndex, ThemeEmbedding
+from .embeddings import EMBEDDING_DIM, EmbeddingIndex
 from .themes import load_all_themes
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ def build_embedding_cache(
 
     if verbose:
         elapsed = time.time() - start
-        print(f"Done in {elapsed:.1f}s ({len(themes)/elapsed:.0f} themes/s)")
+        print(f"Done in {elapsed:.1f}s ({len(themes) / elapsed:.0f} themes/s)")
 
     return index
 

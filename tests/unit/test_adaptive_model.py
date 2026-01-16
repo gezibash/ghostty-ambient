@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
 import numpy as np
 import pytest
 
-from ghostty_ambient.embeddings import EMBEDDING_DIM, EmbeddingIndex
-from ghostty_ambient.observations import ObservationStore
-from ghostty_ambient.phase_detector import Phase, PhaseDetector
 from ghostty_ambient.adaptive_model import (
+    DEFAULT_HISTORY_PATH,
     STORAGE_VERSION,
     AdaptivePreferenceModel,
-    DEFAULT_HISTORY_PATH,
 )
+from ghostty_ambient.embeddings import EMBEDDING_DIM, EmbeddingIndex
+from ghostty_ambient.phase_detector import Phase, PhaseDetector
 
 
 @pytest.fixture

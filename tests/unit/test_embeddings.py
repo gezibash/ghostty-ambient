@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pytest
 
@@ -50,29 +48,29 @@ class TestLabToLch:
     def test_converts_neutral_gray(self):
         L, C, H = _lab_to_lch(50, 0, 0)
         assert L == 50
-        assert C == pytest.approx(0, abs=0.001)
+        assert pytest.approx(0, abs=0.001) == C
 
     def test_converts_red_hue(self):
         L, C, H = _lab_to_lch(50, 50, 0)
         assert L == 50
-        assert C == pytest.approx(50)
-        assert H == pytest.approx(0, abs=0.1)
+        assert pytest.approx(50) == C
+        assert pytest.approx(0, abs=0.1) == H
 
     def test_converts_yellow_hue(self):
         L, C, H = _lab_to_lch(50, 0, 50)
         assert L == 50
-        assert C == pytest.approx(50)
-        assert H == pytest.approx(90, abs=0.1)
+        assert pytest.approx(50) == C
+        assert pytest.approx(90, abs=0.1) == H
 
     def test_converts_negative_a(self):
         L, C, H = _lab_to_lch(50, -50, 0)
-        assert C == pytest.approx(50)
-        assert H == pytest.approx(180, abs=0.1)
+        assert pytest.approx(50) == C
+        assert pytest.approx(180, abs=0.1) == H
 
     def test_converts_negative_b(self):
         L, C, H = _lab_to_lch(50, 0, -50)
-        assert C == pytest.approx(50)
-        assert H == pytest.approx(270, abs=0.1)
+        assert pytest.approx(50) == C
+        assert pytest.approx(270, abs=0.1) == H
 
     def test_hue_always_positive(self):
         # All quadrants should result in positive hue
@@ -342,9 +340,7 @@ class TestEmbeddingIndex:
 
     def test_nearest_excludes_specified_themes(self, embedding_index_with_themes):
         query = embedding_index_with_themes.get("Tokyo Night")
-        results = embedding_index_with_themes.nearest(
-            query, k=5, exclude={"Tokyo Night", "Gruvbox Dark"}
-        )
+        results = embedding_index_with_themes.nearest(query, k=5, exclude={"Tokyo Night", "Gruvbox Dark"})
 
         names = [name for name, _ in results]
         assert "Tokyo Night" not in names

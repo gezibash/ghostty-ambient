@@ -19,7 +19,6 @@ import numpy as np
 
 from .embeddings import EMBEDDING_DIM
 
-
 # Prior parameters
 DEFAULT_PRIOR_MEAN = np.zeros(EMBEDDING_DIM, dtype=np.float32)
 DEFAULT_PRIOR_VAR = 100.0  # High initial uncertainty
@@ -39,9 +38,7 @@ class EmbeddingPosterior:
     """
 
     mean: np.ndarray = field(default_factory=lambda: DEFAULT_PRIOR_MEAN.copy())
-    variance: np.ndarray = field(
-        default_factory=lambda: np.full(EMBEDDING_DIM, DEFAULT_PRIOR_VAR, dtype=np.float32)
-    )
+    variance: np.ndarray = field(default_factory=lambda: np.full(EMBEDDING_DIM, DEFAULT_PRIOR_VAR, dtype=np.float32))
     total_weight: float = 0.0
     observation_count: int = 0
 
@@ -87,7 +84,7 @@ class EmbeddingPosterior:
         weights: list[float],
     ) -> None:
         """Update posterior with multiple observations."""
-        for emb, w in zip(embeddings, weights):
+        for emb, w in zip(embeddings, weights, strict=True):
             self.update(emb, w)
 
     @property
@@ -346,10 +343,7 @@ class ContextualPosterior:
 
         Useful for identifying gaps in learning.
         """
-        items = [
-            (key, p.confidence)
-            for key, p in self.posteriors.items()
-        ]
+        items = [(key, p.confidence) for key, p in self.posteriors.items()]
         items.sort(key=lambda x: x[1])
         return items[:top_k]
 
@@ -357,10 +351,7 @@ class ContextualPosterior:
         """Serialize for storage."""
         return {
             "global": self.global_posterior.to_dict(),
-            "contexts": {
-                key: p.to_dict()
-                for key, p in self.posteriors.items()
-            },
+            "contexts": {key: p.to_dict() for key, p in self.posteriors.items()},
         }
 
     @classmethod
@@ -370,8 +361,5 @@ class ContextualPosterior:
         if "global" in data:
             cp.global_posterior = EmbeddingPosterior.from_dict(data["global"])
         if "contexts" in data:
-            cp.posteriors = {
-                key: EmbeddingPosterior.from_dict(p_data)
-                for key, p_data in data["contexts"].items()
-            }
+            cp.posteriors = {key: EmbeddingPosterior.from_dict(p_data) for key, p_data in data["contexts"].items()}
         return cp

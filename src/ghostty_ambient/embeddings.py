@@ -26,7 +26,6 @@ import numpy as np
 
 from .color import delta_e, hex_to_lab
 
-
 EMBEDDING_DIM = 20
 
 
@@ -62,7 +61,7 @@ def _compute_palette_stats(palette: dict[int, str]) -> dict:
 
     # Convert palette to LCH
     lch_colors = []
-    for idx, hex_color in palette.items():
+    for hex_color in palette.values():
         lab = hex_to_lab(hex_color)
         lch = _lab_to_lch(*lab)
         lch_colors.append(lch)
@@ -153,7 +152,7 @@ def _compute_harmony_scores(hues: list[float]) -> list[float]:
 
     return [
         harmony_score(180),  # Complementary
-        harmony_score(30),   # Analogous
+        harmony_score(30),  # Analogous
         harmony_score(120),  # Triadic
         harmony_score(150),  # Split-complementary
     ]
@@ -237,18 +236,31 @@ class ThemeEmbedding:
         - Chroma and warmth matter for "feel"
         """
         if weights is None:
-            weights = np.array([
-                3.0, 1.0, 1.0,  # bg_L, bg_a, bg_b (L is most important)
-                1.0, 0.5, 0.5,  # fg_L, fg_a, fg_b
-                2.0,            # contrast
-                1.5,            # avg_chroma
-                2.0,            # brightness
-                1.0,            # warmth
-                0.5, 0.5, 0.5, 0.5,  # hue quadrants
-                0.3, 0.3, 0.3, 0.3,  # harmony scores
-                0.5,            # color variety
-                0.5,            # lightness range
-            ], dtype=np.float32)
+            weights = np.array(
+                [
+                    3.0,
+                    1.0,
+                    1.0,  # bg_L, bg_a, bg_b (L is most important)
+                    1.0,
+                    0.5,
+                    0.5,  # fg_L, fg_a, fg_b
+                    2.0,  # contrast
+                    1.5,  # avg_chroma
+                    2.0,  # brightness
+                    1.0,  # warmth
+                    0.5,
+                    0.5,
+                    0.5,
+                    0.5,  # hue quadrants
+                    0.3,
+                    0.3,
+                    0.3,
+                    0.3,  # harmony scores
+                    0.5,  # color variety
+                    0.5,  # lightness range
+                ],
+                dtype=np.float32,
+            )
 
         diff = self.vector - other.vector
         return float(np.sqrt(np.sum(weights * diff**2)))
@@ -300,9 +312,7 @@ class EmbeddingIndex:
         """Build numpy matrix for vectorized operations."""
         self._names = list(self.embeddings.keys())
         if self._names:
-            self._matrix = np.vstack([
-                self.embeddings[name].vector for name in self._names
-            ])
+            self._matrix = np.vstack([self.embeddings[name].vector for name in self._names])
         else:
             self._matrix = np.zeros((0, EMBEDDING_DIM), dtype=np.float32)
 
@@ -369,10 +379,7 @@ class EmbeddingIndex:
 
     def to_dict(self) -> dict:
         """Serialize index for storage."""
-        return {
-            name: emb.to_dict()
-            for name, emb in self.embeddings.items()
-        }
+        return {name: emb.to_dict() for name, emb in self.embeddings.items()}
 
     @classmethod
     def from_dict(cls, data: dict) -> EmbeddingIndex:

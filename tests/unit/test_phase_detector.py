@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import numpy as np
 import pytest
 
 from ghostty_ambient.embeddings import EMBEDDING_DIM
-from ghostty_ambient.observations import Observation, ObservationFeatures, ObservationStore
+from ghostty_ambient.observations import ObservationFeatures
 from ghostty_ambient.phase_detector import (
     PHASE_CONFIGS,
     Phase,
@@ -256,7 +254,6 @@ class TestPhaseDetectorStickiness:
         phase_detector.update(mixed_features)
 
         # With slightly elevated but not extreme features, should stay in STABLE
-        new_stable_prob = phase_detector.phase_probabilities()[Phase.STABLE]
         # Even with stickiness, one observation shifts belief somewhat
         # The key is it doesn't immediately jump to EXPLORE
         assert phase_detector.current_phase() in (Phase.STABLE, Phase.CONVERGE)
@@ -319,7 +316,7 @@ class TestPhaseDetectorProbabilities:
 
     def test_probabilities_all_positive(self, phase_detector):
         probs = phase_detector.phase_probabilities()
-        for phase, prob in probs.items():
+        for _phase, prob in probs.items():
             assert prob >= 0
 
     def test_probabilities_returned_for_all_phases(self, phase_detector):
@@ -350,7 +347,6 @@ class TestPhaseDetectorFromStore:
         assert isinstance(phase, Phase)
 
     def test_detect_from_store_updates_belief(self, phase_detector, observation_store_with_data):
-        initial_belief = phase_detector._belief.copy()
         phase_detector.detect_from_store(observation_store_with_data)
         # Belief may or may not change depending on features
         # Just verify it doesn't crash

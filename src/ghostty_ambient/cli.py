@@ -25,8 +25,8 @@ import json
 import sys
 from datetime import datetime
 
-from .history import History
 from .adaptive_scorer import score_themes_adaptive as score_themes
+from .history import History
 from .sensor import (
     CONFIG_FILE,
     WeatherData,
@@ -41,7 +41,6 @@ from .sensor import (
 )
 from .sensors import discover_backends, get_best_backend
 from .themes import (
-    GHOSTTY_CONFIG,
     apply_theme,
     get_current_font,
     get_current_theme,
@@ -134,7 +133,9 @@ def format_output(
     if system_appearance and system_appearance != "unknown":
         sys_info_parts.append(f"{system_appearance} mode")
     if power_source and power_source != "unknown":
-        power_display = {"ac": "AC", "battery_high": "battery", "battery_low": "low battery"}.get(power_source, power_source)
+        power_display = {"ac": "AC", "battery_high": "battery", "battery_low": "low battery"}.get(
+            power_source, power_source
+        )
         sys_info_parts.append(power_display)
     if sys_info_parts:
         lines.append(f"│ System: {', '.join(sys_info_parts)}".ljust(51) + "│")
@@ -219,9 +220,9 @@ def show_sensors():
 
 def show_snapshots(history: History):
     """Display recent learning snapshots in a rich table."""
+    from rich import box
     from rich.console import Console
     from rich.table import Table
-    from rich import box
 
     console = Console()
     snapshots = history.data.get("recent_snapshots", [])
@@ -265,9 +266,7 @@ def show_snapshots(history: History):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Ambient light-aware Ghostty theme selector with learning"
-    )
+    parser = argparse.ArgumentParser(description="Ambient light-aware Ghostty theme selector with learning")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--set", type=str, metavar="NAME", help="Set theme by name directly")
     parser.add_argument("--apply", type=str, metavar="N", help="Apply theme (1-5 for recommended, a-e for explore)")
@@ -282,7 +281,14 @@ def main():
     parser.add_argument("--embeddings", action="store_true", help="Show theme embedding cache info")
     parser.add_argument("--rebuild-embeddings", action="store_true", help="Rebuild theme embedding cache")
     parser.add_argument("--similar", type=str, metavar="THEME", help="Find themes similar to THEME")
-    parser.add_argument("--duplicates", nargs="?", const=0.1, type=float, metavar="THRESHOLD", help="Find duplicate themes (default threshold: 0.1)")
+    parser.add_argument(
+        "--duplicates",
+        nargs="?",
+        const=0.1,
+        type=float,
+        metavar="THRESHOLD",
+        help="Find duplicate themes (default threshold: 0.1)",
+    )
     parser.add_argument("--reset-learning", action="store_true", help="Clear learned preferences and start fresh")
     parser.add_argument("--clean", action="store_true", help="Clear recent snapshots (keeps learned preferences)")
     parser.add_argument("--ideal", action="store_true", help="Generate and apply optimal theme for current context")
@@ -304,22 +310,27 @@ def main():
     # Daemon management commands
     if args.status:
         from .daemon_manager import daemon_status
+
         daemon_status()
         return
     if args.start:
         from .daemon_manager import daemon_start
+
         daemon_start(freq=args.freq)
         return
     if args.stop:
         from .daemon_manager import daemon_stop
+
         daemon_stop()
         return
     if args.restart:
         from .daemon_manager import daemon_restart
+
         daemon_restart()
         return
     if args.logs:
         from .daemon_manager import daemon_logs
+
         daemon_logs()
         return
 
@@ -336,6 +347,7 @@ def main():
     # Show embedding cache info
     if args.embeddings:
         from .embedding_cache import get_cache_info
+
         info = get_cache_info()
         if not info.get("exists"):
             print(f"No embedding cache found at {info['path']}")
@@ -343,11 +355,11 @@ def main():
         elif info.get("error"):
             print(f"Cache error: {info['error']}")
         else:
-            print(f"Theme Embedding Cache")
+            print("Theme Embedding Cache")
             print(f"  Path: {info['path']}")
             print(f"  Version: {info['version']} {'(current)' if info['is_current'] else '(outdated)'}")
             print(f"  Themes: {info['theme_count']}/{info['total_themes']}")
-            if info['missing_themes']:
+            if info["missing_themes"]:
                 print(f"  Missing: {info['missing_themes']} themes")
             print(f"  Size: {info['size_bytes'] / 1024:.1f} KB")
         return
@@ -355,6 +367,7 @@ def main():
     # Rebuild embedding cache
     if args.rebuild_embeddings:
         from .embedding_cache import build_embedding_cache, save_embedding_cache
+
         index = build_embedding_cache(verbose=True)
         save_embedding_cache(index)
         print(f"Saved {len(index.embeddings)} theme embeddings to cache")
@@ -363,19 +376,18 @@ def main():
     # Find similar themes
     if args.similar:
         from .embedding_cache import load_embedding_cache
+
         index = load_embedding_cache(verbose=False)
         if args.similar not in index.embeddings:
             # Try case-insensitive match
-            match = next(
-                (name for name in index.embeddings if name.lower() == args.similar.lower()),
-                None
-            )
+            match = next((name for name in index.embeddings if name.lower() == args.similar.lower()), None)
             if match:
                 args.similar = match
             else:
                 print(f"Theme not found: {args.similar}", file=sys.stderr)
                 # Suggest close matches
                 from difflib import get_close_matches
+
                 suggestions = get_close_matches(args.similar, list(index.embeddings.keys()), n=5)
                 if suggestions:
                     print("Did you mean:", file=sys.stderr)
@@ -420,7 +432,7 @@ def main():
         clusters = []
         seen = set()
 
-        for name1, name2, dist in duplicates:
+        for name1, name2, _dist in duplicates:
             if name1 in seen and name2 in seen:
                 # Both already in clusters, merge if needed
                 continue
@@ -481,8 +493,9 @@ def main():
     # Generate and apply ideal theme for current context
     if args.ideal:
         from pathlib import Path
-        from .theme_generator import ThemeGenerator
+
         from .factors import FactorRegistry
+        from .theme_generator import ThemeGenerator
 
         history = History()
 
@@ -541,6 +554,7 @@ def main():
     # Run daemon mode
     if args.daemon:
         from .daemon import run_daemon
+
         interval = parse_interval(args.interval)
         if interval is None:
             print(f"Invalid interval: {args.interval}", file=sys.stderr)
@@ -561,10 +575,7 @@ def main():
 
         # Find theme by name (case-insensitive exact match)
         theme_name_lower = args.set.lower()
-        theme = next(
-            (t for t in themes if t["name"].lower() == theme_name_lower),
-            None
-        )
+        theme = next((t for t in themes if t["name"].lower() == theme_name_lower), None)
         if not theme:
             # Try partial match (substring)
             matches = [t for t in themes if theme_name_lower in t["name"].lower()]
@@ -580,7 +591,7 @@ def main():
                 close = get_close_matches(args.set, theme_names, n=3, cutoff=0.6)
                 if close:
                     print(f"Theme not found: {args.set}", file=sys.stderr)
-                    print(f"Did you mean:", file=sys.stderr)
+                    print("Did you mean:", file=sys.stderr)
                     for name in close:
                         print(f"  {name}", file=sys.stderr)
                 else:
@@ -615,7 +626,7 @@ def main():
             )
             print(f"Applied: {theme['name']}")
         else:
-            print(f"Error applying theme", file=sys.stderr)
+            print("Error applying theme", file=sys.stderr)
             sys.exit(1)
         return
 
@@ -631,8 +642,8 @@ def main():
 
     # Export profile
     if args.export_profile:
-        from pathlib import Path
         import platform
+        from pathlib import Path
 
         profile = {
             "version": 2,
@@ -656,6 +667,7 @@ def main():
     # Import profile
     if args.import_profile:
         from pathlib import Path
+
         from .adaptive_model import AdaptivePreferenceModel
 
         input_path = Path(args.import_profile)
@@ -675,7 +687,9 @@ def main():
                 history.add_favorite(fav)
             for dis in profile.get("disliked", []):
                 history.add_dislike(dis)
-            print(f"Imported {len(profile.get('favorites', []))} favorites, {len(profile.get('disliked', []))} disliked")
+            print(
+                f"Imported {len(profile.get('favorites', []))} favorites, {len(profile.get('disliked', []))} disliked"
+            )
             return
 
         if "model_data" not in profile:
@@ -800,7 +814,7 @@ def main():
     # Get recommendations with scores for UI
     # Note: theme already has _final_score from scorer, but we also set _score for TUI
     recommendations = []
-    for score, theme in scored[:args.count]:
+    for score, theme in scored[: args.count]:
         theme["_score"] = score  # Score is already in ~0-100 range
         recommendations.append(theme)
 
@@ -824,7 +838,7 @@ def main():
             if len(scored) > args.count + 5:
                 rec_names = {r["name"] for r in recommendations}
                 explore = [t for _, t in scored[-15:-2] if t["name"] not in rec_names][:5]
-                letter_idx = ord(args.apply.lower()) - ord('a')
+                letter_idx = ord(args.apply.lower()) - ord("a")
                 if letter_idx < len(explore):
                     theme_to_apply = explore[letter_idx]
                     source = "explore"
@@ -861,7 +875,7 @@ def main():
             if apply_theme(theme_name):
                 print(f"Applied: {theme_name}")
             else:
-                print(f"Error applying theme", file=sys.stderr)
+                print("Error applying theme", file=sys.stderr)
                 sys.exit(1)
             return
 
@@ -900,9 +914,7 @@ def main():
         current_theme_name = get_current_theme()
         current_theme_dict = None
         if current_theme_name:
-            current_theme_dict = next(
-                (t for t in themes if t["name"] == current_theme_name), None
-            )
+            current_theme_dict = next((t for t in themes if t["name"] == current_theme_name), None)
 
         # Get explore themes: well-scoring themes you haven't tried much
         # These are "fresh discoveries" - good themes waiting to be explored
@@ -927,19 +939,27 @@ def main():
             candidates.sort(key=lambda x: (x[0], -x[1]))
 
             explore = []
-            for choice_count, score, theme in candidates[:10]:
+            for _choice_count, score, theme in candidates[:10]:
                 theme["_score"] = score
                 explore.append(theme)
 
         # Build status header
         header = format_output(
-            weather, lux, recommendations, history, sensor_name,
-            system_appearance, power_source, current_theme_dict,
-            location_str, timezone_str
+            weather,
+            lux,
+            recommendations,
+            history,
+            sensor_name,
+            system_appearance,
+            power_source,
+            current_theme_dict,
+            location_str,
+            timezone_str,
         )
 
         # Show interactive picker with header
         from .tui import pick_theme
+
         selected = pick_theme(recommendations, explore, current_theme_name, header=header)
 
         if selected:

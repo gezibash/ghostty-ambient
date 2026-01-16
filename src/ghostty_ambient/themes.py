@@ -160,9 +160,7 @@ def apply_theme(theme_name: str) -> bool:
     config_content = GHOSTTY_CONFIG.read_text()
 
     if re.search(r"^theme\s*=", config_content, re.M):
-        new_content = re.sub(
-            r"^theme\s*=.*$", f"theme = {theme_name}", config_content, flags=re.M
-        )
+        new_content = re.sub(r"^theme\s*=.*$", f"theme = {theme_name}", config_content, flags=re.M)
     else:
         new_content = config_content.rstrip() + f"\ntheme = {theme_name}\n"
 
@@ -171,9 +169,9 @@ def apply_theme(theme_name: str) -> bool:
     # Reload Ghostty config
     try:
         subprocess.run(
-            ["osascript", "-e",
-             'tell application "System Events" to keystroke "," using {command down, shift down}'],
-            check=False, capture_output=True
+            ["osascript", "-e", 'tell application "System Events" to keystroke "," using {command down, shift down}'],
+            check=False,
+            capture_output=True,
         )
     except Exception:
         pass
@@ -192,8 +190,9 @@ def get_theme_properties(theme: dict) -> dict:
         contrast: Delta E between bg and fg
         avg_chroma: Average palette chroma
     """
-    from .color import hex_to_lab
     import math
+
+    from .color import hex_to_lab
 
     result = {}
 
@@ -209,9 +208,7 @@ def get_theme_properties(theme: dict) -> dict:
     if "bg_lab" in result and "fg_lab" in result:
         bg = result["bg_lab"]
         fg = result["fg_lab"]
-        result["contrast"] = math.sqrt(
-            (bg[0] - fg[0]) ** 2 + (bg[1] - fg[1]) ** 2 + (bg[2] - fg[2]) ** 2
-        )
+        result["contrast"] = math.sqrt((bg[0] - fg[0]) ** 2 + (bg[1] - fg[1]) ** 2 + (bg[2] - fg[2]) ** 2)
 
     # Palette chromas (colors 1-6: red, green, yellow, blue, magenta, cyan)
     if "palette" in theme:

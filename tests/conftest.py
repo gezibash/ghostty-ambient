@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 import numpy as np
 import pytest
 
-
 # =============================================================================
 # Adaptive learning fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_theme_dicts():
@@ -26,8 +26,14 @@ def sample_theme_dicts():
             "brightness": 26,
             "warmth": -0.2,
             "palette": {
-                0: "#15161e", 1: "#f7768e", 2: "#9ece6a", 3: "#e0af68",
-                4: "#7aa2f7", 5: "#bb9af7", 6: "#7dcfff", 7: "#a9b1d6",
+                0: "#15161e",
+                1: "#f7768e",
+                2: "#9ece6a",
+                3: "#e0af68",
+                4: "#7aa2f7",
+                5: "#bb9af7",
+                6: "#7dcfff",
+                7: "#a9b1d6",
             },
         },
         {
@@ -37,8 +43,14 @@ def sample_theme_dicts():
             "brightness": 40,
             "warmth": 0.4,
             "palette": {
-                0: "#282828", 1: "#cc241d", 2: "#98971a", 3: "#d79921",
-                4: "#458588", 5: "#b16286", 6: "#689d6a", 7: "#a89984",
+                0: "#282828",
+                1: "#cc241d",
+                2: "#98971a",
+                3: "#d79921",
+                4: "#458588",
+                5: "#b16286",
+                6: "#689d6a",
+                7: "#a89984",
             },
         },
         {
@@ -48,8 +60,14 @@ def sample_theme_dicts():
             "brightness": 246,
             "warmth": 0.1,
             "palette": {
-                0: "#073642", 1: "#dc322f", 2: "#859900", 3: "#b58900",
-                4: "#268bd2", 5: "#d33682", 6: "#2aa198", 7: "#eee8d5",
+                0: "#073642",
+                1: "#dc322f",
+                2: "#859900",
+                3: "#b58900",
+                4: "#268bd2",
+                5: "#d33682",
+                6: "#2aa198",
+                7: "#eee8d5",
             },
         },
         {
@@ -59,8 +77,14 @@ def sample_theme_dicts():
             "brightness": 52,
             "warmth": -0.1,
             "palette": {
-                0: "#3b4252", 1: "#bf616a", 2: "#a3be8c", 3: "#ebcb8b",
-                4: "#81a1c1", 5: "#b48ead", 6: "#88c0d0", 7: "#e5e9f0",
+                0: "#3b4252",
+                1: "#bf616a",
+                2: "#a3be8c",
+                3: "#ebcb8b",
+                4: "#81a1c1",
+                5: "#b48ead",
+                6: "#88c0d0",
+                7: "#e5e9f0",
             },
         },
         {
@@ -70,8 +94,14 @@ def sample_theme_dicts():
             "brightness": 40,
             "warmth": 0.0,
             "palette": {
-                0: "#21222c", 1: "#ff5555", 2: "#50fa7b", 3: "#f1fa8c",
-                4: "#bd93f9", 5: "#ff79c6", 6: "#8be9fd", 7: "#f8f8f2",
+                0: "#21222c",
+                1: "#ff5555",
+                2: "#50fa7b",
+                3: "#f1fa8c",
+                4: "#bd93f9",
+                5: "#ff79c6",
+                6: "#8be9fd",
+                7: "#f8f8f2",
             },
         },
         {
@@ -81,8 +111,14 @@ def sample_theme_dicts():
             "brightness": 250,
             "warmth": 0.0,
             "palette": {
-                0: "#383a42", 1: "#e45649", 2: "#50a14f", 3: "#c18401",
-                4: "#4078f2", 5: "#a626a4", 6: "#0184bc", 7: "#a0a1a7",
+                0: "#383a42",
+                1: "#e45649",
+                2: "#50a14f",
+                3: "#c18401",
+                4: "#4078f2",
+                5: "#a626a4",
+                6: "#0184bc",
+                7: "#a0a1a7",
             },
         },
     ]
@@ -98,8 +134,14 @@ def dark_theme():
         "brightness": 30,
         "warmth": 0.0,
         "palette": {
-            0: "#000000", 1: "#ff0000", 2: "#00ff00", 3: "#ffff00",
-            4: "#0000ff", 5: "#ff00ff", 6: "#00ffff", 7: "#ffffff",
+            0: "#000000",
+            1: "#ff0000",
+            2: "#00ff00",
+            3: "#ffff00",
+            4: "#0000ff",
+            5: "#ff00ff",
+            6: "#00ffff",
+            7: "#ffffff",
         },
     }
 
@@ -114,8 +156,14 @@ def light_theme():
         "brightness": 255,
         "warmth": 0.0,
         "palette": {
-            0: "#000000", 1: "#c41a16", 2: "#007400", 3: "#826b28",
-            4: "#0000ff", 5: "#a90d91", 6: "#318495", 7: "#ffffff",
+            0: "#000000",
+            1: "#c41a16",
+            2: "#007400",
+            3: "#826b28",
+            4: "#0000ff",
+            5: "#a90d91",
+            6: "#318495",
+            7: "#ffffff",
         },
     }
 
@@ -123,18 +171,31 @@ def light_theme():
 @pytest.fixture
 def sample_embedding():
     """A sample 20D embedding vector for testing."""
-    return np.array([
-        25.0, -3.5, -8.2,   # bg LAB
-        85.0, -2.0, 5.0,    # fg LAB
-        60.0,               # contrast
-        0.4,                # avg_chroma (normalized)
-        0.1,                # brightness (normalized)
-        0.4,                # warmth (normalized)
-        0.3, 0.2, 0.3, 0.2, # hue quadrants
-        0.5, 0.3, 0.4, 0.2, # harmony scores
-        0.3,                # color variety
-        0.4,                # lightness range
-    ], dtype=np.float32)
+    return np.array(
+        [
+            25.0,
+            -3.5,
+            -8.2,  # bg LAB
+            85.0,
+            -2.0,
+            5.0,  # fg LAB
+            60.0,  # contrast
+            0.4,  # avg_chroma (normalized)
+            0.1,  # brightness (normalized)
+            0.4,  # warmth (normalized)
+            0.3,
+            0.2,
+            0.3,
+            0.2,  # hue quadrants
+            0.5,
+            0.3,
+            0.4,
+            0.2,  # harmony scores
+            0.3,  # color variety
+            0.4,  # lightness range
+        ],
+        dtype=np.float32,
+    )
 
 
 @pytest.fixture

@@ -10,10 +10,11 @@ Uses Bayesian posteriors to:
 
 from __future__ import annotations
 
-import numpy as np
 from typing import TYPE_CHECKING
 
-from ghostty_ambient.color import lab_to_hex, hex_to_lab
+import numpy as np
+
+from ghostty_ambient.color import hex_to_lab, lab_to_hex
 
 if TYPE_CHECKING:
     from ghostty_ambient.history import _ThemeModelCompat as ThemePreferenceModel
@@ -21,11 +22,11 @@ if TYPE_CHECKING:
 # ANSI color hue targets in LAB a/b space
 # These define the "direction" of each color - we scale by learned chroma
 ANSI_HUES = {
-    1: (50, 30),    # red
-    2: (-50, 50),   # green
-    3: (0, 60),     # yellow
-    4: (0, -60),    # blue
-    5: (50, -30),   # magenta
+    1: (50, 30),  # red
+    2: (-50, 50),  # green
+    3: (0, 60),  # yellow
+    4: (0, -60),  # blue
+    5: (50, -30),  # magenta
     6: (-30, -30),  # cyan
 }
 

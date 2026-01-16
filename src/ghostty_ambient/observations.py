@@ -8,7 +8,7 @@ for phase detection (variance, model distance, etc.).
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -130,10 +130,7 @@ class ObservationStore:
         """Get observations from the last N days."""
         now = datetime.now()
         cutoff = days * 86400  # seconds
-        return [
-            o for o in self.observations
-            if (now - o.timestamp).total_seconds() <= cutoff
-        ]
+        return [o for o in self.observations if (now - o.timestamp).total_seconds() <= cutoff]
 
     def for_context(self, context: dict[str, str], days: float = 30) -> list[Observation]:
         """
@@ -148,10 +145,7 @@ class ObservationStore:
         matching = []
         for obs in candidates:
             # Count matching factors
-            matches = sum(
-                1 for k, v in context.items()
-                if obs.context.get(k) == v
-            )
+            matches = sum(1 for k, v in context.items() if obs.context.get(k) == v)
             if matches > 0:
                 matching.append(obs)
 
@@ -211,7 +205,7 @@ class ObservationStore:
         manual_rate = sources.count("manual") / len(sources)
 
         # Unique themes
-        unique_themes = len(set(o.theme_name for o in recent))
+        unique_themes = len({o.theme_name for o in recent})
 
         return ObservationFeatures(
             embedding_variance=embedding_variance,
@@ -317,7 +311,7 @@ class ObservationStore:
             # Weighted variance (using reliability weights formula)
             # Var = sum(w * (x - mean)^2) / sum(w)
             diff = embeddings_arr - weighted_mean
-            weighted_var = np.average(diff ** 2, weights=weights_arr, axis=0)
+            weighted_var = np.average(diff**2, weights=weights_arr, axis=0)
 
             # Add small floor to prevent zero variance
             weighted_var = np.maximum(weighted_var, 0.01)
@@ -347,9 +341,7 @@ class ObservationStore:
     def from_dict(cls, data: dict[str, Any], max_observations: int = 5000) -> ObservationStore:
         """Deserialize from JSON."""
         store = cls(max_observations=max_observations)
-        store.observations = [
-            Observation.from_dict(o) for o in data.get("observations", [])
-        ]
+        store.observations = [Observation.from_dict(o) for o in data.get("observations", [])]
         if data.get("running_mean") is not None:
             store._running_mean = np.array(data["running_mean"], dtype=np.float32)
             store._running_mean_count = data.get("running_mean_count", len(store.observations))

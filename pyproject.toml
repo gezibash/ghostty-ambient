@@ -1,6 +1,6 @@
 [project]
 name = "ghostty-ambient"
-version = "0.2.0"
+version = "0.3.0"
 description = "Ambient light-aware Ghostty theme selector with Bayesian preference learning"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -73,4 +73,51 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "ruff>=0.8.0",
+    "pre-commit>=4.0.0",
+    "gitlint>=0.19.0",
 ]
+release = [
+    "python-semantic-release>=9.0.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "SIM108", # ternary operators often less readable
+    "SIM105", # contextlib.suppress often less clear
+    "SIM102", # nested if often clearer than combined
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+branch = "main"
+build_command = "uv build"
+commit_message = "chore(release): {version}"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]

@@ -26,9 +26,8 @@ Or via entry points in pyproject.toml:
     my_factor = "my_package.factors:MyFactor"
 """
 
-from .base import Factor, FactorRegistry
-
 # Import builtin to trigger auto-registration
 from . import builtin  # noqa: F401
+from .base import Factor, FactorRegistry
 
 __all__ = ["Factor", "FactorRegistry"]
