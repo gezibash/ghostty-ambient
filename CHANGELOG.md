@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.1 (2026-01-16)
+
+### Bug Fixes
+
+- Add RAM and disk usage to daemon status
+  ([`81e2a24`](https://github.com/gezibash/ghostty-ambient/commit/81e2a249bcba939e7b20448d9fedd6b925b2e54d))
+
+
 ## v0.6.0 (2026-01-16)
 
 ### Features
