@@ -1,7 +1,8 @@
 """Rich-based theme picker with probability bars."""
 
 import readchar
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
@@ -90,17 +91,17 @@ def pick_theme(
     # Global padding (top, right, bottom, left)
     PADDING = (2, 4, 1, 4)
 
-    def render():
-        """Render the full UI."""
-        console.clear()
+    def build_renderable():
+        """Build the full UI as a renderable."""
+        renderables = []
 
         # Top padding
-        console.print("\n" * PADDING[0], end="")
+        renderables.append(Text("\n" * PADDING[0]))
 
         # Header (context box) - already contains current theme info
         if header:
-            console.print(Padding(header, (0, 0, 0, PADDING[3])))
-            console.print()
+            renderables.append(Padding(header, (0, 0, 0, PADDING[3])))
+            renderables.append(Text())
 
         # Section title and description
         themes = get_current_list()
@@ -140,11 +141,14 @@ def pick_theme(
             padding=(1, 2),
             width=available_width,
         )
-        console.print(Padding(panel, (0, 0, 0, PADDING[3])))
+        renderables.append(Padding(panel, (0, 0, 0, PADDING[3])))
 
         # Help text with padding
-        console.print()
-        console.print(Padding("[dim]↑↓ navigate  ENTER select  TAB switch  q quit[/]", (0, 0, 0, PADDING[3])))
+        renderables.append(Text())
+        help_text = Text("↑↓ navigate  ENTER select  TAB switch  q quit", style="dim")
+        renderables.append(Padding(help_text, (0, 0, 0, PADDING[3])))
+
+        return Group(*renderables)
 
     def handle_input() -> str | None:
         """Handle keyboard input. Returns 'quit', 'select', or None."""
@@ -168,20 +172,23 @@ def pick_theme(
 
         return None
 
-    # Main loop
+    # Main loop with Live display - screen=True handles alternate screen buffer
     try:
-        while True:
-            render()
-            action = handle_input()
+        with Live(build_renderable(), console=console, screen=True, refresh_per_second=4) as live:
+            while True:
+                old_state = (cursor_idx, current_section)
+                action = handle_input()
+                new_state = (cursor_idx, current_section)
 
-            if action == "quit":
-                console.clear()
-                return None
-            elif action == "select":
-                themes = get_current_list()
-                if themes and 0 <= cursor_idx < len(themes):
-                    console.clear()
-                    return themes[cursor_idx]
+                if action == "quit":
+                    return None
+                elif action == "select":
+                    themes = get_current_list()
+                    if themes and 0 <= cursor_idx < len(themes):
+                        return themes[cursor_idx]
+
+                # Only update display if state changed
+                if new_state != old_state:
+                    live.update(build_renderable())
     except KeyboardInterrupt:
-        console.clear()
         return None
