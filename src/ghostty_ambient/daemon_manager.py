@@ -20,12 +20,46 @@ from pathlib import Path
 MACOS_PLIST = Path.home() / "Library/LaunchAgents/com.ghostty-ambient.daemon.plist"
 LINUX_SERVICE = Path.home() / ".config/systemd/user/ghostty-ambient.service"
 LOG_FILE = Path.home() / ".local/share/ghostty-ambient/daemon.log"
+HISTORY_FILE = Path.home() / ".config/ghostty-ambient/history.json"
 LABEL = "com.ghostty-ambient.daemon"
 
 
 def get_platform() -> str:
     """Return 'Darwin' for macOS, 'Linux' for Linux."""
     return platform.system()
+
+
+def _format_bytes(size: int) -> str:
+    """Format bytes as human-readable string."""
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    elif size >= 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size} bytes"
+
+
+def _get_process_memory(pid: str) -> str | None:
+    """Get memory usage for a process."""
+    try:
+        if get_platform() == "Darwin":
+            # macOS: use ps to get RSS (resident set size)
+            result = subprocess.run(
+                ["ps", "-o", "rss=", "-p", pid],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                rss_kb = int(result.stdout.strip())
+                return _format_bytes(rss_kb * 1024)
+        else:
+            # Linux: read from /proc
+            statm = Path(f"/proc/{pid}/statm").read_text()
+            pages = int(statm.split()[1])  # RSS in pages
+            page_size = 4096  # typical page size
+            return _format_bytes(pages * page_size)
+    except (subprocess.SubprocessError, ValueError, FileNotFoundError, PermissionError):
+        return None
+    return None
 
 
 def _find_binary() -> str | None:
@@ -120,12 +154,18 @@ def _macos_status() -> None:
                     print(f"Daemon: stopped (exit code: {status_code})")
                 else:
                     print(f"Daemon: running (PID: {pid})")
+                    # Show memory usage
+                    mem = _get_process_memory(pid)
+                    if mem:
+                        print(f"Memory: {mem}")
 
-                # Show log file location
+                # Show log file size
                 if LOG_FILE.exists():
-                    size = LOG_FILE.stat().st_size
-                    size_str = f"{size / 1024:.1f} KB" if size > 1024 else f"{size} bytes"
-                    print(f"Logs: {LOG_FILE} ({size_str})")
+                    print(f"Logs: {_format_bytes(LOG_FILE.stat().st_size)}")
+
+                # Show history file size (learning data)
+                if HISTORY_FILE.exists():
+                    print(f"Data: {_format_bytes(HISTORY_FILE.stat().st_size)}")
                 return
 
     # Not found in launchctl list
@@ -161,11 +201,16 @@ def _linux_status() -> None:
         )
         pid = pid_result.stdout.strip().replace("MainPID=", "")
         print(f"Daemon: running (PID: {pid})")
+        # Show memory usage
+        mem = _get_process_memory(pid)
+        if mem:
+            print(f"Memory: {mem}")
     else:
         print(f"Daemon: {status}")
 
-    print(f"Config: {LINUX_SERVICE}")
-    print("Logs: journalctl --user -u ghostty-ambient")
+    # Show history file size (learning data)
+    if HISTORY_FILE.exists():
+        print(f"Data: {_format_bytes(HISTORY_FILE.stat().st_size)}")
 
 
 def daemon_start(freq: str = "5m") -> None:
