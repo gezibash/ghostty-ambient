@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-01-16)
+
+### Continuous Integration
+
+- Add build step before publish
+  ([`9c9fb42`](https://github.com/gezibash/ghostty-ambient/commit/9c9fb42d0e412b3f5b6885a211ab46cf9674552b))
+
+### Features
+
+- Trigger v0.5.0 release
+  ([`7c76ad4`](https://github.com/gezibash/ghostty-ambient/commit/7c76ad4f53f64250a2d3b5d6fb65a9420be33816))
+
+
 ## v0.4.0 (2026-01-16)
 
 ### Bug Fixes
