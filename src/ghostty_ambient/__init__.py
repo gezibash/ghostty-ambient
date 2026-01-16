@@ -3,7 +3,7 @@
 from .sensor import get_lux, get_sun_times, lux_to_condition, get_sun_phase
 from .themes import load_all_themes, parse_theme, calculate_brightness
 from .history import History
-from .scorer import score_themes
+from .adaptive_scorer import score_themes_adaptive as score_themes
 
 __all__ = [
     "get_lux",

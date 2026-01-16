@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from ghostty_ambient.color import lab_to_hex, hex_to_lab
 
 if TYPE_CHECKING:
-    from ghostty_ambient.color_posterior import ThemePreferenceModel
+    from ghostty_ambient.history import _ThemeModelCompat as ThemePreferenceModel
 
 # ANSI color hue targets in LAB a/b space
 # These define the "direction" of each color - we scale by learned chroma

@@ -26,7 +26,7 @@ import sys
 from datetime import datetime
 
 from .history import History
-from .scorer import score_themes
+from .adaptive_scorer import score_themes_adaptive as score_themes
 from .sensor import (
     CONFIG_FILE,
     WeatherData,
@@ -279,6 +279,10 @@ def main():
     parser.add_argument("--unfavorite", action="store_true", help="Remove current theme from favorites")
     parser.add_argument("--undislike", action="store_true", help="Remove current theme from disliked")
     parser.add_argument("--sensors", action="store_true", help="Show available sensor backends")
+    parser.add_argument("--embeddings", action="store_true", help="Show theme embedding cache info")
+    parser.add_argument("--rebuild-embeddings", action="store_true", help="Rebuild theme embedding cache")
+    parser.add_argument("--similar", type=str, metavar="THEME", help="Find themes similar to THEME")
+    parser.add_argument("--duplicates", nargs="?", const=0.1, type=float, metavar="THRESHOLD", help="Find duplicate themes (default threshold: 0.1)")
     parser.add_argument("--reset-learning", action="store_true", help="Clear learned preferences and start fresh")
     parser.add_argument("--clean", action="store_true", help="Clear recent snapshots (keeps learned preferences)")
     parser.add_argument("--ideal", action="store_true", help="Generate and apply optimal theme for current context")
@@ -327,6 +331,127 @@ def main():
     # Show sensors
     if args.sensors:
         show_sensors()
+        return
+
+    # Show embedding cache info
+    if args.embeddings:
+        from .embedding_cache import get_cache_info
+        info = get_cache_info()
+        if not info.get("exists"):
+            print(f"No embedding cache found at {info['path']}")
+            print("Run: ghostty-ambient --rebuild-embeddings")
+        elif info.get("error"):
+            print(f"Cache error: {info['error']}")
+        else:
+            print(f"Theme Embedding Cache")
+            print(f"  Path: {info['path']}")
+            print(f"  Version: {info['version']} {'(current)' if info['is_current'] else '(outdated)'}")
+            print(f"  Themes: {info['theme_count']}/{info['total_themes']}")
+            if info['missing_themes']:
+                print(f"  Missing: {info['missing_themes']} themes")
+            print(f"  Size: {info['size_bytes'] / 1024:.1f} KB")
+        return
+
+    # Rebuild embedding cache
+    if args.rebuild_embeddings:
+        from .embedding_cache import build_embedding_cache, save_embedding_cache
+        index = build_embedding_cache(verbose=True)
+        save_embedding_cache(index)
+        print(f"Saved {len(index.embeddings)} theme embeddings to cache")
+        return
+
+    # Find similar themes
+    if args.similar:
+        from .embedding_cache import load_embedding_cache
+        index = load_embedding_cache(verbose=False)
+        if args.similar not in index.embeddings:
+            # Try case-insensitive match
+            match = next(
+                (name for name in index.embeddings if name.lower() == args.similar.lower()),
+                None
+            )
+            if match:
+                args.similar = match
+            else:
+                print(f"Theme not found: {args.similar}", file=sys.stderr)
+                # Suggest close matches
+                from difflib import get_close_matches
+                suggestions = get_close_matches(args.similar, list(index.embeddings.keys()), n=5)
+                if suggestions:
+                    print("Did you mean:", file=sys.stderr)
+                    for s in suggestions:
+                        print(f"  {s}", file=sys.stderr)
+                sys.exit(1)
+
+        similar = index.similar_to(args.similar, k=10)
+        print(f"Themes similar to '{args.similar}':")
+        for name, distance in similar:
+            print(f"  {distance:5.1f}  {name}")
+        return
+
+    # Find duplicate themes
+    if args.duplicates is not None:
+        from .embedding_cache import load_embedding_cache
+
+        index = load_embedding_cache(verbose=False)
+        names = list(index.embeddings.keys())
+        n = len(names)
+
+        threshold = args.duplicates
+        print(f"Analyzing {n} themes for duplicates (threshold: {threshold})...")
+        duplicates = []  # (name1, name2, distance)
+
+        for i in range(n):
+            emb_i = index.embeddings[names[i]]
+            for j in range(i + 1, n):
+                emb_j = index.embeddings[names[j]]
+                dist = emb_i.distance(emb_j)
+                if dist <= threshold:
+                    duplicates.append((names[i], names[j], dist))
+
+        if not duplicates:
+            print(f"No duplicate themes found (threshold: distance < {threshold})")
+            return
+
+        # Sort by distance
+        duplicates.sort(key=lambda x: x[2])
+
+        # Group into clusters
+        clusters = []
+        seen = set()
+
+        for name1, name2, dist in duplicates:
+            if name1 in seen and name2 in seen:
+                # Both already in clusters, merge if needed
+                continue
+
+            # Find existing cluster or create new one
+            found_cluster = None
+            for cluster in clusters:
+                if name1 in cluster or name2 in cluster:
+                    found_cluster = cluster
+                    break
+
+            if found_cluster:
+                found_cluster.add(name1)
+                found_cluster.add(name2)
+            else:
+                clusters.append({name1, name2})
+
+            seen.add(name1)
+            seen.add(name2)
+
+        print(f"\nFound {len(clusters)} duplicate groups ({len(seen)} themes):\n")
+
+        for i, cluster in enumerate(clusters, 1):
+            cluster_list = sorted(cluster)
+            print(f"Group {i}:")
+            for j, name in enumerate(cluster_list):
+                prefix = "  =" if j > 0 else "   "
+                print(f"{prefix} {name}")
+            print()
+
+        print(f"Total: {len(seen)} themes could be consolidated into {len(clusters)} unique themes")
         return
 
     # Reset learning
@@ -501,8 +626,7 @@ def main():
 
     # Show stats
     if args.stats:
-        from .browser import show_stats
-        show_stats(history)
+        history.show_stats()
         return
 
     # Export profile
@@ -511,33 +635,28 @@ def main():
         import platform
 
         profile = {
-            "version": 1,
+            "version": 2,
             "exported": datetime.now().isoformat(),
             "device": platform.node(),
-            "theme_posteriors": history.data.get("theme_posteriors", {}),
-            "favorites": history.data.get("favorites", []),
-            "disliked": history.data.get("disliked", []),
+            "model_data": history.model.to_dict(),
         }
 
         # Count observations for summary
-        total_obs = sum(
-            len(ctx.get("color", {}).get("observations", []))
-            for ctx in profile["theme_posteriors"].values()
-        )
-        contexts = len(profile["theme_posteriors"])
+        total_obs = len(history.model.observations)
 
         output_path = Path(args.export_profile)
         with open(output_path, "w") as f:
             json.dump(profile, f, indent=2)
 
         print(f"Exported profile to: {output_path}")
-        print(f"  {contexts} contexts, {total_obs} observations")
-        print(f"  {len(profile['favorites'])} favorites, {len(profile['disliked'])} disliked")
+        print(f"  {total_obs} observations")
+        print(f"  {len(history.model.favorites)} favorites, {len(history.model.disliked)} disliked")
         return
 
     # Import profile
     if args.import_profile:
         from pathlib import Path
+        from .adaptive_model import AdaptivePreferenceModel
 
         input_path = Path(args.import_profile)
         if not input_path.exists():
@@ -547,49 +666,44 @@ def main():
         with open(input_path) as f:
             profile = json.load(f)
 
-        if "theme_posteriors" not in profile:
-            print("Invalid profile: missing theme_posteriors", file=sys.stderr)
+        version = profile.get("version", 1)
+        if version < 2:
+            print("Profile is v1 format (old learning model).", file=sys.stderr)
+            print("Only favorites/disliked will be imported.", file=sys.stderr)
+            # Import only favorites/disliked from v1
+            for fav in profile.get("favorites", []):
+                history.add_favorite(fav)
+            for dis in profile.get("disliked", []):
+                history.add_dislike(dis)
+            print(f"Imported {len(profile.get('favorites', []))} favorites, {len(profile.get('disliked', []))} disliked")
+            return
+
+        if "model_data" not in profile:
+            print("Invalid profile: missing model_data", file=sys.stderr)
             sys.exit(1)
 
-        # Merge into current history
-        imported_posteriors = profile.get("theme_posteriors", {})
-        current_posteriors = history.data.get("theme_posteriors", {})
+        # Load imported model
+        imported_model = AdaptivePreferenceModel.from_dict(profile["model_data"])
 
         # Merge observations (append imported to current)
-        for ctx, ctx_data in imported_posteriors.items():
-            if ctx not in current_posteriors:
-                current_posteriors[ctx] = ctx_data
-            else:
-                # Merge observations for each type
-                for obs_type in ["color", "contrast", "chroma"]:
-                    if obs_type in ctx_data:
-                        if obs_type not in current_posteriors[ctx]:
-                            current_posteriors[ctx][obs_type] = {"observations": []}
-                        current_posteriors[ctx][obs_type]["observations"].extend(
-                            ctx_data[obs_type].get("observations", [])
-                        )
-
-        history.data["theme_posteriors"] = current_posteriors
+        for obs in imported_model.observations.observations:
+            history.model.observations.add(obs)
 
         # Merge favorites and disliked (union)
-        existing_favs = set(history.data.get("favorites", []))
-        existing_disliked = set(history.data.get("disliked", []))
-        history.data["favorites"] = list(existing_favs | set(profile.get("favorites", [])))
-        history.data["disliked"] = list(existing_disliked | set(profile.get("disliked", [])))
+        history.model.favorites.update(imported_model.favorites)
+        history.model.disliked.update(imported_model.disliked)
 
+        # Update phase detection with merged data
+        history.model.phase_detector.detect_from_store(history.model.observations)
+
+        # Save merged model
         history._save()
 
-        # Reload the model with merged data
-        from .color_posterior import ThemePreferenceModel
-        history.theme_model = ThemePreferenceModel(history.data.get("theme_posteriors"))
-
-        imported_obs = sum(
-            len(ctx.get("color", {}).get("observations", []))
-            for ctx in imported_posteriors.values()
-        )
+        imported_obs = len(imported_model.observations)
         print(f"Imported profile from: {input_path}")
         print(f"  Source: {profile.get('device', 'unknown')} ({profile.get('exported', 'unknown')[:10]})")
-        print(f"  Merged {len(imported_posteriors)} contexts, {imported_obs} observations")
+        print(f"  Merged {imported_obs} observations")
+        print(f"  Total observations now: {len(history.model.observations)}")
         return
 
     # Handle favorite/dislike for current theme
@@ -669,12 +783,15 @@ def main():
         print("Error: No themes found", file=sys.stderr)
         sys.exit(1)
 
-    # Score themes using factorized Bayesian preference
+    # Ensure themes are indexed in the model
+    history._ensure_indexed(themes)
+
+    # Score themes using adaptive preference model
     scored = score_themes(
         themes,
+        model=history.model,
         lux=lux,
         weather_code=weather.weather_code,
-        history=history,
         system_appearance=system_appearance,
         power_source=power_source,
         font=font,

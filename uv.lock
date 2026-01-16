@@ -118,6 +118,11 @@ windows = [
     { name = "winsdk" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "freezegun", marker = "extra == 'dev'", specifier = ">=1.2.0" },
@@ -130,6 +135,9 @@ requires-dist = [
     { name = "winsdk", marker = "extra == 'windows'", specifier = ">=1.0.0b10" },
 ]
 provides-extras = ["windows", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.2" }]
 
 [[package]]
 name = "iniconfig"

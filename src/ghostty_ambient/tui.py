@@ -164,7 +164,7 @@ def pick_theme(
             if len(sections) > 1:
                 current_section = (current_section + 1) % len(sections)
                 cursor_idx = 0
-        elif char == "q" or char == readchar.key.ESCAPE:
+        elif char == "q" or char == readchar.key.ESC:
             return "quit"
         elif char == readchar.key.CTRL_C:
             return "quit"

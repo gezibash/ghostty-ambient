@@ -136,26 +136,7 @@ def take_snapshot(history: History) -> dict | None:
     font = get_current_font()
     now = datetime.now()
 
-    # Record as implicit choice (source="snapshot")
-    history.record_snapshot(
-        theme_name=theme,
-        lux=lux,
-        hour=now.hour,
-        weather_code=weather.weather_code,
-        system_appearance=system_appearance,
-        power_source=power_source,
-        font=font,
-        background_hex=background_hex,
-        foreground_hex=foreground_hex,
-        palette_chromas=palette_chromas,
-        sunrise=weather.sunrise,
-        sunset=weather.sunset,
-        pressure=weather.pressure,
-        cloud_cover=weather.cloud_cover,
-        uv_index=weather.uv_index,
-    )
-
-    # Get factor buckets for display using registry (includes all 11 factors)
+    # Build factor buckets using registry (includes all 11 factors)
     from .factors import FactorRegistry
 
     context = {
@@ -173,6 +154,15 @@ def take_snapshot(history: History) -> dict | None:
         "datetime": now,
     }
     factors = FactorRegistry.get_all_buckets(context)
+
+    # Record as implicit observation (source="daemon")
+    history.record_snapshot(
+        theme_name=theme,
+        factors=factors,
+        background_hex=background_hex,
+        foreground_hex=foreground_hex,
+        palette_chromas=palette_chromas,
+    )
 
     return {
         "timestamp": now.isoformat(),
