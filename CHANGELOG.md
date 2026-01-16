@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.6.0 (2026-01-16)
+
+### Features
+
+- Show version in daemon status
+  ([`f081b0a`](https://github.com/gezibash/ghostty-ambient/commit/f081b0a5c9b4e4896acc81030e9c39e28aeea8a7))
+
+
 ## v0.5.0 (2026-01-16)
 
 ### Continuous Integration
