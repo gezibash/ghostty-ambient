@@ -24,6 +24,7 @@ import argparse
 import json
 import sys
 from datetime import datetime
+from importlib.metadata import version as get_version
 
 from .adaptive_scorer import score_themes_adaptive as score_themes
 from .history import History
@@ -267,6 +268,7 @@ def show_snapshots(history: History):
 
 def main():
     parser = argparse.ArgumentParser(description="Ambient light-aware Ghostty theme selector with learning")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {get_version('ghostty-ambient')}")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--set", type=str, metavar="NAME", help="Set theme by name directly")
     parser.add_argument("--apply", type=str, metavar="N", help="Apply theme (1-5 for recommended, a-e for explore)")
