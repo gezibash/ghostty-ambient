@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v0.7.0 (2026-01-16)
+
+### Features
+
+- Use Rich Live display to eliminate theme picker flickering
+  ([`c7440f9`](https://github.com/gezibash/ghostty-ambient/commit/c7440f9d462169b6716b7f494fd830e7e1747103))
+
+Replace console.clear() + render() loop with Live(screen=True) which handles the alternate screen
+  buffer properly and only updates on state changes.
+
+
 ## v0.6.1 (2026-01-16)
 
 ### Bug Fixes

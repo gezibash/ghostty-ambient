@@ -1,6 +1,6 @@
 [project]
 name = "ghostty-ambient"
-version = "0.6.1"
+version = "0.7.0"
 description = "Ambient light-aware Ghostty theme selector with Bayesian preference learning"
 readme = "README.md"
 requires-python = ">=3.12"
