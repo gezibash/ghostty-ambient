@@ -13,6 +13,7 @@ import platform
 import shutil
 import subprocess
 import sys
+from importlib.metadata import version as get_version
 from pathlib import Path
 
 # Service file locations
@@ -102,6 +103,7 @@ def daemon_status() -> None:
 
 def _macos_status() -> None:
     """Show macOS daemon status."""
+    print(f"Version: {get_version('ghostty-ambient')}")
     result = subprocess.run(
         ["launchctl", "list"],
         capture_output=True,
@@ -137,6 +139,7 @@ def _macos_status() -> None:
 
 def _linux_status() -> None:
     """Show Linux daemon status."""
+    print(f"Version: {get_version('ghostty-ambient')}")
     if not LINUX_SERVICE.exists():
         print("Daemon: not installed")
         print("Run: ghostty-ambient --start")
