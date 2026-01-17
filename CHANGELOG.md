@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v0.8.0 (2026-01-17)
+
+### Features
+
+- Add explanation text for selected theme in picker
+  ([`d41018f`](https://github.com/gezibash/ghostty-ambient/commit/d41018fe092dd89c1610be17ccfdfac9c0245808))
+
+Shows why the selected theme is recommended based on its characteristics (brightness, warmth) and
+  match quality (score, confidence, learning phase).
+
+
 ## v0.7.0 (2026-01-16)
 
 ### Features
