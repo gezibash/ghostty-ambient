@@ -8,6 +8,55 @@ from rich.panel import Panel
 from rich.text import Text
 
 
+def get_explanation(theme: dict) -> str:
+    """Generate a short explanation for why this theme is recommended."""
+    parts = []
+
+    # Theme characteristics
+    brightness = theme.get("brightness", 128)
+    warmth = theme.get("warmth", 0)
+
+    if brightness < 60:
+        tone = "Dark"
+    elif brightness < 120:
+        tone = "Medium"
+    elif brightness < 200:
+        tone = "Light"
+    else:
+        tone = "Very light"
+
+    if warmth > 0.15:
+        temp = "warm"
+    elif warmth < -0.15:
+        temp = "cool"
+    else:
+        temp = "neutral"
+
+    parts.append(f"{tone} theme with {temp} tones")
+
+    # Score-based explanation
+    score = theme.get("_score", 50)
+    confidence = theme.get("_confidence", 0.5)
+
+    if score >= 90:
+        parts.append("very close to your ideal")
+    elif score >= 75:
+        parts.append("good match for current context")
+    elif score >= 60:
+        parts.append("moderate match")
+    else:
+        parts.append("exploring outside your usual preferences")
+
+    # Phase-based addition
+    phase = theme.get("_phase", "explore")
+    if phase == "explore" and confidence < 0.5:
+        parts.append("(still learning your preferences)")
+    elif phase == "stable":
+        parts.append("(based on established preferences)")
+
+    return " · ".join(parts[:2])  # Keep it short - max 2 parts
+
+
 def prob_bar(pct: float, width: int = 20) -> str:
     """Create a slider-style probability bar."""
     # Clamp percentage to 0-100 range
@@ -129,6 +178,13 @@ def pick_theme(
             content.append_text(line)
             if i < len(lines) - 1:
                 content.append("\n")
+
+        # Add explanation for selected theme
+        if themes and 0 <= cursor_idx < len(themes):
+            selected_theme = themes[cursor_idx]
+            explanation = get_explanation(selected_theme)
+            content.append("\n\n")
+            content.append(explanation, style="dim italic")
 
         # Render panel with symmetric padding
         # Calculate available width for panel (terminal width minus left and right padding)
