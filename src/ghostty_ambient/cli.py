@@ -511,6 +511,11 @@ def main():
         if backend and backend.is_available():
             reading = backend.read()
             lux = reading.lux
+            if lux is None and reading.error:
+                # Sensor available but failed - fall back to legacy
+                lux = get_lux()
+        else:
+            lux = get_lux()
 
         # Build factors for current context
         now = datetime.now()
@@ -612,6 +617,11 @@ def main():
             if backend and backend.is_available():
                 reading = backend.read()
                 lux = reading.lux
+                if lux is None and reading.error:
+                    # Sensor available but failed - fall back to legacy
+                    lux = get_lux()
+            else:
+                lux = get_lux()
 
             now = datetime.now()
             history.record_choice(

@@ -291,8 +291,14 @@ class History:
 
             for obs in reversed(recent):
                 time_str = obs.timestamp.strftime("%H:%M:%S")
-                ctx_parts = [f"{k}={v}" for k, v in list(obs.context.items())[:3]]
-                ctx_str = " ".join(ctx_parts)
+                # Show values only (no keys), skip unknowns, prioritized order
+                priority_keys = ["time", "lux", "weather", "system", "power", "circadian", "day"]
+                ctx_parts = []
+                for key in priority_keys:
+                    val = obs.context.get(key, "")
+                    if val and val != "unknown":
+                        ctx_parts.append(val)
+                ctx_str = " · ".join(ctx_parts)
                 obs_table.add_row(time_str, obs.theme_name[:25], obs.source, ctx_str)
 
             console.print(obs_table)

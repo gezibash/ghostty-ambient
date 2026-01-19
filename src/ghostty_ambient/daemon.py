@@ -128,6 +128,9 @@ def take_snapshot(history: History) -> dict | None:
     if backend and backend.is_available():
         reading = backend.read()
         lux = reading.lux
+        if lux is None and reading.error:
+            # Sensor available but failed - fall back to legacy
+            lux = get_lux()
     else:
         lux = get_lux()
 
