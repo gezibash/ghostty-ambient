@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v0.8.1 (2026-01-19)
+
+### Bug Fixes
+
+- Add lux sensor fallback and improve stats context display
+  ([`3ed1931`](https://github.com/gezibash/ghostty-ambient/commit/3ed1931eb65d9cb7ac2605f727252efc2b3d8597))
+
+- Add fallback to legacy get_lux() when sensor backend fails in daemon, --ideal, and --set modes
+  (matching picker behavior) - Show all context dimensions in --stats table with dot separators,
+  skipping unknown values
+
+
 ## v0.8.0 (2026-01-17)
 
 ### Features
