@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.8.2 (2026-01-19)
+
+### Bug Fixes
+
+- Improve phase detection and context-aware recommendations
+  ([`aca328d`](https://github.com/gezibash/ghostty-ambient/commit/aca328d9c5ce588a2346e5760259786f30f520ea))
+
+- Fix embedding variance computation to use per-dimension variance instead of total variance (was
+  hitting normalization cap) - Adjust phase detector normalization thresholds to realistic scales -
+  Use Bayesian posterior for predict_ideal instead of broken context filtering that matched all
+  observations - Prioritize primary factors (system, time, circadian, lux) over ambient factors
+  (weather, clouds, pressure) when combining context posteriors
+
+This ensures recommendations match learned preferences for each context (e.g., dark themes for
+  system=dark, light themes for system=light).
+
+
 ## v0.8.1 (2026-01-19)
 
 ### Bug Fixes
