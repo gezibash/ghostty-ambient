@@ -179,8 +179,9 @@ class ObservationStore:
         embeddings = np.array([o.embedding for o in recent])
         embedding_mean = np.mean(embeddings, axis=0)
 
-        # Total variance across all dimensions
-        embedding_variance = float(np.var(embeddings))
+        # Per-dimension variance, averaged across dimensions
+        # This measures how spread out the user's choices are in embedding space
+        embedding_variance = float(np.mean(np.var(embeddings, axis=0)))
 
         # Model distance: how far recent choices deviate from running mean
         if self._running_mean is not None:

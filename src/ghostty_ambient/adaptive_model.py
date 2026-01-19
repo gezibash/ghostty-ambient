@@ -135,9 +135,8 @@ class AdaptivePreferenceModel:
         """
         Predict ideal theme embedding for current context.
 
-        Uses exponential recency weighting with half-life determined
-        by the current learning phase. Optionally returns Bayesian
-        confidence estimate.
+        Uses the Bayesian posterior which properly handles context-specific
+        preferences (e.g., dark themes for system=dark, light for system=light).
 
         Args:
             context: Optional context filter
@@ -146,21 +145,13 @@ class AdaptivePreferenceModel:
         Returns:
             20D embedding vector, or (embedding, confidence) if return_confidence=True
         """
-        config = self.phase_detector.get_config()
-        half_life = config.recency_half_life
-
-        weighted_mean, total_weight = self.observations.compute_weighted_mean(
-            half_life_days=half_life,
-            context=context,
-        )
+        # Get the context-aware posterior (combines partial matches)
+        posterior = self.posterior.get_posterior(context or {})
 
         if return_confidence:
-            # Get confidence from Bayesian posterior
-            posterior = self.posterior.get_posterior(context or {})
-            confidence = posterior.confidence
-            return weighted_mean, confidence
+            return posterior.mean, posterior.confidence
 
-        return weighted_mean
+        return posterior.mean
 
     def sample_ideal(self, context: dict[str, str] | None = None) -> np.ndarray:
         """

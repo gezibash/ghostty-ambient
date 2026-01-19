@@ -132,8 +132,10 @@ class PhaseDetector:
     def _features_to_vector(self, features: ObservationFeatures) -> np.ndarray:
         """Convert observation features to normalized feature vector."""
         # Normalize features to roughly [0, 1] range
-        variance_norm = min(features.embedding_variance / 10.0, 1.0)
-        distance_norm = min(features.model_distance / 50.0, 1.0)
+        # variance: per-dimension variance, ~0.2 for consistent users, ~2+ for explorers
+        variance_norm = min(features.embedding_variance / 2.0, 1.0)
+        # distance: Euclidean in 20D space, ~50-70 is close, ~100+ is far
+        distance_norm = min(features.model_distance / 100.0, 1.0)
         ideal_rate = features.ideal_usage_rate
         unique_ratio = min(features.unique_themes / max(features.observation_count, 1), 1.0)
 

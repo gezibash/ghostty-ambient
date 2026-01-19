@@ -274,11 +274,16 @@ class ContextualPosterior:
                     self.posteriors[partial_key] = EmbeddingPosterior()
                 self.posteriors[partial_key].update(embedding, weight * 0.5)
 
+    # Primary factors that most strongly influence theme preference
+    # These are user-controlled or time-based, not ambient environmental
+    PRIMARY_FACTORS = {"system", "time", "circadian", "lux"}
+
     def get_posterior(self, context: dict[str, str]) -> EmbeddingPosterior:
         """
         Get the best posterior for a context.
 
         Falls back to partial matches or global if exact match unavailable.
+        Prioritizes primary factors (system, time, circadian, lux) over ambient ones.
         """
         key = self._context_key(context)
 
@@ -286,17 +291,24 @@ class ContextualPosterior:
         if key in self.posteriors:
             return self.posteriors[key]
 
-        # Try to combine partial matches
-        partial_posteriors = []
+        # Try to combine partial matches, prioritizing primary factors
+        primary_posteriors = []
+        secondary_posteriors = []
+
         for k, v in context.items():
             if v != "unknown":
                 partial_key = f"{k}={v}"
                 if partial_key in self.posteriors:
-                    partial_posteriors.append(self.posteriors[partial_key])
+                    if k in self.PRIMARY_FACTORS:
+                        primary_posteriors.append(self.posteriors[partial_key])
+                    else:
+                        secondary_posteriors.append(self.posteriors[partial_key])
 
-        if partial_posteriors:
-            # Combine by averaging (weighted by confidence)
-            return self._combine_posteriors(partial_posteriors)
+        # Use primary factors if available, otherwise fall back to all
+        if primary_posteriors:
+            return self._combine_posteriors(primary_posteriors)
+        elif secondary_posteriors:
+            return self._combine_posteriors(secondary_posteriors)
 
         # Fall back to global
         return self.global_posterior
