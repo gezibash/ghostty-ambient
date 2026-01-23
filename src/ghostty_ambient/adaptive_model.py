@@ -24,7 +24,7 @@ import numpy as np
 from .bayesian_embedding import ContextualPosterior
 from .embeddings import EmbeddingIndex
 from .observations import Observation, ObservationStore
-from .phase_detector import PHASE_CONFIGS, Phase, PhaseDetector
+from .phase_detector import Phase, PhaseDetector
 
 # Storage version for migration
 STORAGE_VERSION = 3  # Bumped for Bayesian posterior addition
@@ -208,7 +208,6 @@ class AdaptivePreferenceModel:
                 self.embedding_index.add_theme(theme)
 
         phase = self.current_phase()
-        config = PHASE_CONFIGS[phase]
 
         # Get confidence for this context
         confidence = self.get_confidence(context)
@@ -251,10 +250,13 @@ class AdaptivePreferenceModel:
             if theme_name in self.favorites:
                 score += 15
 
-            # In EXPLORE phase, add diversity bonus for less similar themes
-            if phase == Phase.EXPLORE:
-                diversity_bonus = config.recommendation_diversity * distance * 0.5
-                score += diversity_bonus
+            # Note: Diversity bonus removed from main recommendations.
+            # The CLI's "explore" tab already provides theme exploration
+            # via a separate mechanism that shows well-scoring themes
+            # you haven't tried much. The old diversity bonus was broken:
+            # it added bonus proportional to distance, which caused themes
+            # FURTHEST from ideal (e.g., dark themes when in light mode)
+            # to appear as top recommendations.
 
             theme["_score"] = score
             theme["_distance"] = distance
