@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.9.0 (2026-01-23)
+
+### Features
+
+- Add online hmm learning and behavioral fixtures
+  ([`97bc65b`](https://github.com/gezibash/ghostty-ambient/commit/97bc65b08883b2a63d6b3ba7f663e831f3107a1e))
+
+
 ## v0.8.4 (2026-01-23)
 
 ### Bug Fixes
