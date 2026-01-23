@@ -27,6 +27,33 @@ import numpy as np
 from .color import delta_e, hex_to_lab
 
 EMBEDDING_DIM = 20
+# Per-dimension scale used for standardizing embedding-space metrics.
+# Chosen to reflect typical ranges of each feature.
+EMBEDDING_SCALE = np.array(
+    [
+        10.0,
+        15.0,
+        15.0,  # bg L, a, b
+        10.0,
+        15.0,
+        15.0,  # fg L, a, b
+        15.0,  # contrast (Delta E)
+        0.2,
+        0.2,
+        0.2,  # chroma, brightness, warmth (normalized)
+        0.1,
+        0.1,
+        0.1,
+        0.1,  # hue quadrants
+        0.1,
+        0.1,
+        0.1,
+        0.1,  # harmony scores
+        0.2,  # color variety
+        0.2,  # lightness range
+    ],
+    dtype=np.float32,
+)
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:

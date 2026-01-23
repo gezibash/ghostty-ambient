@@ -18,37 +18,13 @@ from typing import Any
 
 import numpy as np
 
-from .embeddings import EMBEDDING_DIM
+from .embeddings import EMBEDDING_DIM, EMBEDDING_SCALE
 
 # Prior parameters
 DEFAULT_PRIOR_MEAN = np.zeros(EMBEDDING_DIM, dtype=np.float32)
 DEFAULT_PRIOR_VAR = 100.0  # High initial uncertainty
 # Observation noise per dimension (heuristic, tuned to feature scales).
-OBSERVATION_STD = np.array(
-    [
-        10.0,
-        15.0,
-        15.0,  # bg L, a, b
-        10.0,
-        15.0,
-        15.0,  # fg L, a, b
-        15.0,  # contrast (Delta E)
-        0.2,
-        0.2,
-        0.2,  # chroma, brightness, warmth (normalized)
-        0.1,
-        0.1,
-        0.1,
-        0.1,  # hue quadrants
-        0.1,
-        0.1,
-        0.1,
-        0.1,  # harmony scores
-        0.2,  # color variety
-        0.2,  # lightness range
-    ],
-    dtype=np.float32,
-)
+OBSERVATION_STD = EMBEDDING_SCALE.copy()
 OBSERVATION_VAR = OBSERVATION_STD**2
 MIN_DECAY_FACTOR = 1e-6
 

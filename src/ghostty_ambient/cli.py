@@ -219,6 +219,49 @@ def show_sensors():
                 print(f"Error: {reading.error}")
 
 
+def show_hmm_diagnostics(history: History) -> None:
+    """Print HMM feature values and emission diagnostics."""
+    model = history.model
+    detector = model.phase_detector
+    config = detector.get_config()
+    features = model.observations.compute_decayed_features(config.recency_half_life)
+    diag = detector.diagnose(features)
+
+    print("HMM Diagnostics")
+    print(f"  Phase: {detector.current_phase().value}")
+    print(f"  Observations: {features.observation_count}")
+    print(f"  Effective weight: {features.effective_weight:.2f}")
+    print(f"  Variance: {features.embedding_variance:.3f}")
+    print(f"  Distance: {features.model_distance:.3f}")
+    print(f"  Model usage: {features.model_usage_rate:.3f}")
+    print(f"  Effective themes: {features.effective_theme_count:.3f}")
+    print()
+
+    feature_names = ["variance", "distance", "model_usage", "effective_themes"]
+    state_names = [s.value for s in detector.states]
+    feature_vec = diag["feature_vector"]
+    per_feature = diag["per_feature_log_likelihoods"]
+    feature_scale = diag["feature_scale"]
+
+    print("  Normalized features:")
+    print("    " + ", ".join(f"{name}={feature_vec[i]:.3f}" for i, name in enumerate(feature_names)))
+    print("  Learned scales:")
+    print("    " + ", ".join(f"{name}={feature_scale[i]:.3f}" for i, name in enumerate(feature_names)))
+    print()
+
+    print("  Per-feature log-likelihoods:")
+    for s_idx, state in enumerate(state_names):
+        vals = " ".join(f"{name}={per_feature[s_idx, i]:+.2f}" for i, name in enumerate(feature_names))
+        print(f"    {state:8s} {vals}")
+    print()
+
+    predicted = diag["predicted_belief"]
+    updated = diag["updated_belief"]
+    print("  Beliefs (predicted -> updated):")
+    for i, state in enumerate(state_names):
+        print(f"    {state:8s} {predicted[i]:.4f} -> {updated[i]:.4f}")
+
+
 def show_snapshots(history: History):
     """Display recent learning snapshots in a rich table."""
     from rich import box
@@ -298,6 +341,7 @@ def main():
     parser.add_argument("--interval", type=str, default="5m", help="Daemon snapshot interval (e.g., 30s, 5m, 1h)")
     parser.add_argument("--snapshots", action="store_true", help="Show recent learning snapshots")
     parser.add_argument("--stats", action="store_true", help="Show learning statistics")
+    parser.add_argument("--hmm-diagnostics", action="store_true", help="Show HMM feature diagnostics")
     parser.add_argument("--export-profile", type=str, metavar="FILE", help="Export learned preferences to file")
     parser.add_argument("--import-profile", type=str, metavar="FILE", help="Import learned preferences from file")
     # Daemon management
@@ -650,6 +694,10 @@ def main():
     # Show stats
     if args.stats:
         history.show_stats()
+        return
+    if args.hmm_diagnostics:
+        show_hmm_diagnostics(history)
+        return
         return
 
     # Export profile

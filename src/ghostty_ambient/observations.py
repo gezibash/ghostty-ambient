@@ -15,7 +15,7 @@ from typing import Any
 
 import numpy as np
 
-from .embeddings import EMBEDDING_DIM
+from .embeddings import EMBEDDING_DIM, EMBEDDING_SCALE
 
 
 @dataclass
@@ -69,9 +69,13 @@ class ObservationFeatures:
     model_distance: float  # How far recent choices are from running mean
     choice_frequency: float  # Choices per day
     ideal_usage_rate: float  # Fraction of choices using --ideal
+    model_usage_rate: float  # Fraction of choices using model (ideal + daemon)
     manual_rate: float  # Fraction of manual (--set) choices
+    theme_entropy: float  # Shannon entropy of theme selection
+    effective_theme_count: float  # exp(entropy), effective number of themes
     unique_themes: int  # Number of unique themes in window
     observation_count: int  # Total observations in window
+    effective_weight: float  # Sum of recency weights (>= observation_count if unweighted)
 
 
 class ObservationStore:
@@ -170,25 +174,35 @@ class ObservationStore:
                 model_distance=0.0,
                 choice_frequency=0.0,
                 ideal_usage_rate=0.0,
+                model_usage_rate=0.0,
                 manual_rate=0.0,
+                theme_entropy=0.0,
+                effective_theme_count=float(len(recent)),
                 unique_themes=len(recent),
                 observation_count=len(recent),
+                effective_weight=float(len(recent)),
             )
 
         # Embedding variance
         embeddings = np.array([o.embedding for o in recent])
         embedding_mean = np.mean(embeddings, axis=0)
 
-        # Per-dimension variance, averaged across dimensions
-        # This measures how spread out the user's choices are in embedding space
-        embedding_variance = float(np.mean(np.var(embeddings, axis=0)))
+        # Standardize embeddings to avoid scale dominance by LAB dimensions.
+        scale = np.where(EMBEDDING_SCALE > 0, EMBEDDING_SCALE, 1.0)
+        standardized = embeddings / scale
+        standardized_mean = np.mean(standardized, axis=0)
 
-        # Model distance: how far recent choices deviate from running mean
+        # Per-dimension variance in standardized space.
+        embedding_variance = float(np.mean(np.var(standardized, axis=0)))
+
+        # Model distance: distance from running mean in standardized space.
         if self._running_mean is not None:
-            distances = np.linalg.norm(embeddings - self._running_mean, axis=1)
+            running_mean = self._running_mean / scale
+            distances = np.linalg.norm(standardized - running_mean, axis=1)
             model_distance = float(np.mean(distances))
         else:
-            model_distance = 0.0
+            distances = np.linalg.norm(standardized - standardized_mean, axis=1)
+            model_distance = float(np.mean(distances))
 
         # Choice frequency (choices per day)
         if len(recent) >= 2:
@@ -203,7 +217,16 @@ class ObservationStore:
         # Source distribution
         sources = [o.source for o in recent]
         ideal_usage_rate = sources.count("ideal") / len(sources)
+        model_usage_rate = sum(1 for s in sources if s in {"ideal", "daemon"}) / len(sources)
         manual_rate = sources.count("manual") / len(sources)
+
+        # Theme entropy and effective theme count
+        theme_counts: dict[str, int] = {}
+        for o in recent:
+            theme_counts[o.theme_name] = theme_counts.get(o.theme_name, 0) + 1
+        probs = np.array(list(theme_counts.values()), dtype=np.float32) / len(recent)
+        theme_entropy = float(-np.sum(probs * np.log(probs + 1e-12)))
+        effective_theme_count = float(np.exp(theme_entropy))
 
         # Unique themes
         unique_themes = len({o.theme_name for o in recent})
@@ -214,10 +237,179 @@ class ObservationStore:
             model_distance=model_distance,
             choice_frequency=choice_frequency,
             ideal_usage_rate=ideal_usage_rate,
+            model_usage_rate=model_usage_rate,
             manual_rate=manual_rate,
+            theme_entropy=theme_entropy,
+            effective_theme_count=effective_theme_count,
             unique_themes=unique_themes,
             observation_count=len(recent),
+            effective_weight=float(len(recent)),
         )
+
+    def compute_decayed_features(
+        self,
+        half_life_days: float,
+        window_days: float | None = None,
+    ) -> ObservationFeatures:
+        """
+        Compute exponentially time-decayed features for phase detection.
+
+        Args:
+            half_life_days: Half-life for exponential decay.
+            window_days: Optional time window limit.
+
+        Returns:
+            ObservationFeatures with decayed statistics.
+        """
+        obs = self.in_window(window_days) if window_days is not None else self.observations
+        if not obs:
+            return ObservationFeatures(
+                embedding_variance=0.0,
+                embedding_mean=np.zeros(EMBEDDING_DIM, dtype=np.float32),
+                model_distance=0.0,
+                choice_frequency=0.0,
+                ideal_usage_rate=0.0,
+                model_usage_rate=0.0,
+                manual_rate=0.0,
+                theme_entropy=0.0,
+                effective_theme_count=0.0,
+                unique_themes=0,
+                observation_count=0,
+                effective_weight=0.0,
+            )
+
+        now = datetime.now()
+        obs_sorted = sorted(obs, key=lambda o: o.timestamp)
+        weights = []
+        embeddings = []
+        sources = []
+        themes = []
+
+        for o in obs_sorted:
+            if half_life_days <= 0:
+                weight = 1.0
+            else:
+                age = o.age_days(now)
+                weight = np.exp(-age * np.log(2) / half_life_days)
+            weights.append(weight)
+            embeddings.append(o.embedding)
+            sources.append(o.source)
+            themes.append(o.theme_name)
+
+        weights_arr = np.array(weights, dtype=np.float32)
+        embeddings_arr = np.array(embeddings)
+        total_weight = float(np.sum(weights_arr))
+        if total_weight <= 0:
+            total_weight = 0.0
+
+        scale = np.where(EMBEDDING_SCALE > 0, EMBEDDING_SCALE, 1.0)
+        standardized = embeddings_arr / scale
+
+        if total_weight > 0:
+            weighted_mean = np.average(standardized, weights=weights_arr, axis=0)
+            diff = standardized - weighted_mean
+            embedding_variance = float(np.average(diff**2, weights=weights_arr, axis=0).mean())
+            distances = np.linalg.norm(diff, axis=1)
+            model_distance = float(np.average(distances, weights=weights_arr))
+            embedding_mean = np.average(embeddings_arr, weights=weights_arr, axis=0)
+        else:
+            embedding_variance = 0.0
+            model_distance = 0.0
+            embedding_mean = np.zeros(EMBEDDING_DIM, dtype=np.float32)
+
+        # Choice frequency (choices per day)
+        if len(obs_sorted) >= 2:
+            time_span = (obs_sorted[-1].timestamp - obs_sorted[0].timestamp).total_seconds()
+            if time_span > 0:
+                choice_frequency = len(obs_sorted) / (time_span / 86400)
+            else:
+                choice_frequency = 0.0
+        else:
+            choice_frequency = 0.0
+
+        # Weighted source distribution
+        if total_weight > 0:
+            ideal_weight = sum(w for w, s in zip(weights_arr, sources, strict=False) if s == "ideal")
+            model_weight = sum(w for w, s in zip(weights_arr, sources, strict=False) if s in {"ideal", "daemon"})
+            manual_weight = sum(w for w, s in zip(weights_arr, sources, strict=False) if s == "manual")
+            ideal_usage_rate = float(ideal_weight / total_weight)
+            model_usage_rate = float(model_weight / total_weight)
+            manual_rate = float(manual_weight / total_weight)
+        else:
+            ideal_usage_rate = 0.0
+            model_usage_rate = 0.0
+            manual_rate = 0.0
+
+        # Weighted theme entropy/effective count
+        theme_weights: dict[str, float] = {}
+        for w, name in zip(weights_arr, themes, strict=False):
+            theme_weights[name] = theme_weights.get(name, 0.0) + float(w)
+        if total_weight > 0:
+            probs = np.array(list(theme_weights.values()), dtype=np.float32) / total_weight
+            theme_entropy = float(-np.sum(probs * np.log(probs + 1e-12)))
+            effective_theme_count = float(np.exp(theme_entropy))
+        else:
+            theme_entropy = 0.0
+            effective_theme_count = 0.0
+
+        unique_themes = len(set(themes))
+
+        return ObservationFeatures(
+            embedding_variance=embedding_variance,
+            embedding_mean=embedding_mean.astype(np.float32),
+            model_distance=model_distance,
+            choice_frequency=choice_frequency,
+            ideal_usage_rate=ideal_usage_rate,
+            model_usage_rate=model_usage_rate,
+            manual_rate=manual_rate,
+            theme_entropy=theme_entropy,
+            effective_theme_count=effective_theme_count,
+            unique_themes=unique_themes,
+            observation_count=len(obs_sorted),
+            effective_weight=total_weight,
+        )
+
+    def compute_feature_percentiles(
+        self,
+        window_size: int = 50,
+        step: int = 10,
+        percentiles: list[int] | None = None,
+    ) -> dict[str, dict[int, float]]:
+        """
+        Compute percentiles for feature values over sliding windows.
+
+        Useful for calibrating HMM normalization scales.
+        """
+        percentiles = percentiles or [10, 50, 90, 95]
+        observations = self.observations
+        if not observations:
+            return {}
+        if len(observations) < window_size:
+            window_size = len(observations)
+        values: dict[str, list[float]] = {
+            "embedding_variance": [],
+            "model_distance": [],
+            "effective_theme_count": [],
+        }
+
+        for start in range(0, len(observations) - window_size + 1, step):
+            window = observations[start : start + window_size]
+            temp = ObservationStore()
+            temp.observations = window
+            temp._recompute_running_mean()
+            features = temp.compute_features(window_size=len(window))
+            values["embedding_variance"].append(features.embedding_variance)
+            values["model_distance"].append(features.model_distance)
+            values["effective_theme_count"].append(features.effective_theme_count)
+
+        percentiles_out: dict[str, dict[int, float]] = {}
+        for key, vals in values.items():
+            if not vals:
+                continue
+            arr = np.array(vals, dtype=np.float32)
+            percentiles_out[key] = {p: float(np.percentile(arr, p)) for p in percentiles}
+
+        return percentiles_out
 
     def compute_weighted_mean(
         self,

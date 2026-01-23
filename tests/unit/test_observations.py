@@ -118,9 +118,13 @@ class TestObservationFeatures:
             model_distance=10.0,
             choice_frequency=5.0,
             ideal_usage_rate=0.3,
+            model_usage_rate=0.4,
             manual_rate=0.1,
+            theme_entropy=0.7,
+            effective_theme_count=2.0,
             unique_themes=5,
             observation_count=20,
+            effective_weight=20.0,
         )
         assert features.embedding_variance == 0.5
         assert features.unique_themes == 5
@@ -383,7 +387,7 @@ class TestObservationStoreFeatures:
         now = datetime.now()
 
         # Add observations with different sources
-        sources = ["picker", "picker", "ideal", "ideal", "ideal", "manual"]
+        sources = ["picker", "picker", "ideal", "ideal", "daemon", "manual"]
         for i, source in enumerate(sources):
             obs = Observation(
                 timestamp=now - timedelta(hours=i),
@@ -395,7 +399,8 @@ class TestObservationStoreFeatures:
             store.add(obs)
 
         features = store.compute_features()
-        assert features.ideal_usage_rate == pytest.approx(3 / 6)
+        assert features.ideal_usage_rate == pytest.approx(2 / 6)
+        assert features.model_usage_rate == pytest.approx(3 / 6)
         assert features.manual_rate == pytest.approx(1 / 6)
 
     def test_compute_features_unique_themes(self):
@@ -416,6 +421,7 @@ class TestObservationStoreFeatures:
 
         features = store.compute_features()
         assert features.unique_themes == 3
+        assert features.effective_theme_count > 1.0
 
     def test_compute_features_window_size(self):
         store = ObservationStore()
