@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v0.8.4 (2026-01-23)
+
+### Bug Fixes
+
+- Implement recency decay and fix Bayesian posterior issues
+  ([`69c48f1`](https://github.com/gezibash/ghostty-ambient/commit/69c48f15fc0f1f7c9099110122dc3c6d4db2a146))
+
+- Add per-dimension observation variance (OBSERVATION_VAR) to handle mixed scales in embeddings (LAB
+  0-100 vs normalized 0-1) - Implement apply_recency_decay() for exponential forgetting based on
+  recency_half_life from phase config - Fix double-counting: replace _combine_posteriors()
+  precision-weighted combination with _select_most_confident() to avoid overcounting overlapping
+  evidence from partial contexts - Fix migration rebuild to apply recency decay with CONVERGE
+  half-life - Update confidence calculation to use per-dimension variance scaling
+
+
 ## v0.8.3 (2026-01-23)
 
 ### Bug Fixes
