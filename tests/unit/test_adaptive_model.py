@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import numpy as np
 import pytest
 
@@ -11,6 +13,7 @@ from ghostty_ambient.adaptive_model import (
     AdaptivePreferenceModel,
 )
 from ghostty_ambient.embeddings import EMBEDDING_DIM, EmbeddingIndex
+from ghostty_ambient.observations import Observation
 from ghostty_ambient.phase_detector import Phase, PhaseDetector
 
 
@@ -369,6 +372,33 @@ class TestAdaptivePreferenceModelSerialization:
         assert restored.favorites == adaptive_model.favorites
         assert restored.disliked == adaptive_model.disliked
         assert len(restored.observations) == len(adaptive_model.observations)
+
+    def test_rebuild_posterior_uses_unit_weight(self):
+        model = AdaptivePreferenceModel(use_embedding_cache=False)
+        # Force a non-unit learning rate to ensure rebuild does not use it.
+        model.phase_detector._belief = np.array([0.0, 0.0, 1.0])
+
+        ts = datetime.now()
+        embeddings = [
+            np.zeros(EMBEDDING_DIM, dtype=np.float32),
+            np.ones(EMBEDDING_DIM, dtype=np.float32),
+            np.ones(EMBEDDING_DIM, dtype=np.float32) * 2.0,
+        ]
+        model.observations.observations = [
+            Observation(
+                timestamp=ts, theme_name="A", embedding=embeddings[0], context={"time": "night"}, source="picker"
+            ),
+            Observation(
+                timestamp=ts, theme_name="B", embedding=embeddings[1], context={"time": "night"}, source="picker"
+            ),
+            Observation(
+                timestamp=ts, theme_name="C", embedding=embeddings[2], context={"time": "night"}, source="picker"
+            ),
+        ]
+
+        model._rebuild_posterior_from_observations()
+
+        assert model.posterior.global_posterior.total_weight == pytest.approx(3.0)
 
 
 class TestAdaptivePreferenceModelSaveLoad:

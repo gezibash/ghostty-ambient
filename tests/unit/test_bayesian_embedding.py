@@ -32,7 +32,7 @@ class TestEmbeddingPosteriorInit:
 
     def test_initial_confidence_is_low(self):
         posterior = EmbeddingPosterior()
-        assert posterior.confidence < 0.1
+        assert posterior.confidence < 0.3
 
 
 class TestEmbeddingPosteriorUpdate:
@@ -266,6 +266,27 @@ class TestContextualPosteriorUpdate:
         cp.update(obs, {"time": "night", "lux": "unknown"}, weight=1.0)
 
         assert "lux=unknown" not in cp.posteriors
+
+
+class TestContextualPosteriorRecencyDecay:
+    """Tests for recency decay handling."""
+
+    def test_recency_decay_increases_variance(self):
+        from datetime import datetime, timedelta
+
+        cp = ContextualPosterior()
+        obs = np.ones(EMBEDDING_DIM, dtype=np.float32)
+
+        now = datetime.now()
+        cp.update(obs, {"time": "night"}, weight=1.0, now=now)
+
+        before_var = cp.global_posterior.variance.copy()
+        before_weight = cp.global_posterior.total_weight
+
+        cp.apply_recency_decay(half_life_days=1.0, now=now + timedelta(days=1))
+
+        assert np.any(cp.global_posterior.variance >= before_var)
+        assert cp.global_posterior.total_weight < before_weight
 
 
 class TestContextualPosteriorGetPosterior:

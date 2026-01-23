@@ -13,6 +13,7 @@ The posterior enables:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -22,7 +23,34 @@ from .embeddings import EMBEDDING_DIM
 # Prior parameters
 DEFAULT_PRIOR_MEAN = np.zeros(EMBEDDING_DIM, dtype=np.float32)
 DEFAULT_PRIOR_VAR = 100.0  # High initial uncertainty
-OBSERVATION_VAR = 10.0  # Assumed observation noise
+# Observation noise per dimension (heuristic, tuned to feature scales).
+OBSERVATION_STD = np.array(
+    [
+        10.0,
+        15.0,
+        15.0,  # bg L, a, b
+        10.0,
+        15.0,
+        15.0,  # fg L, a, b
+        15.0,  # contrast (Delta E)
+        0.2,
+        0.2,
+        0.2,  # chroma, brightness, warmth (normalized)
+        0.1,
+        0.1,
+        0.1,
+        0.1,  # hue quadrants
+        0.1,
+        0.1,
+        0.1,
+        0.1,  # harmony scores
+        0.2,  # color variety
+        0.2,  # lightness range
+    ],
+    dtype=np.float32,
+)
+OBSERVATION_VAR = OBSERVATION_STD**2
+MIN_DECAY_FACTOR = 1e-6
 
 
 @dataclass
@@ -96,10 +124,9 @@ class EmbeddingPosterior:
         from the prior. Higher = more confident.
         """
         # Average variance reduction across dimensions
-        avg_var = np.mean(self.variance)
-        # Confidence approaches 1 as variance approaches 0
-        # Use logistic-like scaling
-        confidence = 1.0 - (avg_var / (avg_var + 10.0))
+        # Average per-dimension confidence based on observation noise scale
+        conf = 1.0 - (self.variance / (self.variance + OBSERVATION_VAR))
+        confidence = np.mean(conf)
         return float(np.clip(confidence, 0.0, 1.0))
 
     @property
@@ -119,8 +146,23 @@ class EmbeddingPosterior:
         are well-established vs uncertain.
         """
         # Confidence per dimension
-        conf = 1.0 - (self.variance / (self.variance + 10.0))
+        conf = 1.0 - (self.variance / (self.variance + OBSERVATION_VAR))
         return conf.astype(np.float32)
+
+    def apply_decay(self, decay_factor: float) -> None:
+        """
+        Exponentially decay precision to forget older observations.
+
+        Args:
+            decay_factor: Multiplier in (0, 1], smaller = faster forgetting.
+        """
+        if decay_factor <= 0:
+            return
+
+        decay_factor = max(decay_factor, MIN_DECAY_FACTOR)
+        # Decay precision => inflate variance, but do not exceed the prior.
+        self.variance = np.minimum(self.variance / decay_factor, DEFAULT_PRIOR_VAR).astype(np.float32)
+        self.total_weight *= decay_factor
 
     def sample(self, rng: np.random.Generator | None = None) -> np.ndarray:
         """
@@ -237,6 +279,7 @@ class ContextualPosterior:
     def __init__(self):
         self.posteriors: dict[str, EmbeddingPosterior] = {}
         self.global_posterior = EmbeddingPosterior()
+        self.last_updated: datetime | None = None
 
     def _context_key(self, context: dict[str, str]) -> str:
         """Create a hashable key from context dict."""
@@ -249,6 +292,7 @@ class ContextualPosterior:
         embedding: np.ndarray,
         context: dict[str, str],
         weight: float = 1.0,
+        now: datetime | None = None,
     ) -> None:
         """
         Update posteriors with a new observation.
@@ -274,6 +318,38 @@ class ContextualPosterior:
                     self.posteriors[partial_key] = EmbeddingPosterior()
                 self.posteriors[partial_key].update(embedding, weight * 0.5)
 
+        self.last_updated = now or datetime.now()
+
+    def apply_recency_decay(self, half_life_days: float, now: datetime | None = None) -> None:
+        """
+        Apply exponential forgetting to all posteriors.
+
+        Args:
+            half_life_days: Half-life in days for recency decay.
+            now: Timestamp to use as the decay reference.
+        """
+        now = now or datetime.now()
+        if self.last_updated is None:
+            self.last_updated = now
+            return
+        if half_life_days <= 0:
+            self.last_updated = now
+            return
+
+        delta_days = (now - self.last_updated).total_seconds() / 86400
+        if delta_days <= 0:
+            self.last_updated = now
+            return
+
+        decay = float(np.exp(-delta_days * np.log(2) / half_life_days))
+        decay = max(decay, MIN_DECAY_FACTOR)
+
+        self.global_posterior.apply_decay(decay)
+        for posterior in self.posteriors.values():
+            posterior.apply_decay(decay)
+
+        self.last_updated = now
+
     # Primary factors that most strongly influence theme preference
     # These are user-controlled or time-based, not ambient environmental
     PRIMARY_FACTORS = {"system", "time", "circadian", "lux"}
@@ -291,7 +367,7 @@ class ContextualPosterior:
         if key in self.posteriors:
             return self.posteriors[key]
 
-        # Try to combine partial matches, prioritizing primary factors
+        # Try to select the best partial match, prioritizing primary factors
         primary_posteriors = []
         secondary_posteriors = []
 
@@ -306,44 +382,21 @@ class ContextualPosterior:
 
         # Use primary factors if available, otherwise fall back to all
         if primary_posteriors:
-            return self._combine_posteriors(primary_posteriors)
+            return self._select_most_confident(primary_posteriors)
         elif secondary_posteriors:
-            return self._combine_posteriors(secondary_posteriors)
+            return self._select_most_confident(secondary_posteriors)
 
         # Fall back to global
         return self.global_posterior
 
-    def _combine_posteriors(
+    def _select_most_confident(
         self,
         posteriors: list[EmbeddingPosterior],
     ) -> EmbeddingPosterior:
-        """Combine multiple posteriors using precision weighting."""
+        """Select the most confident posterior to avoid double-counting evidence."""
         if not posteriors:
             return EmbeddingPosterior()
-
-        if len(posteriors) == 1:
-            return posteriors[0]
-
-        # Precision-weighted combination
-        total_precision = np.zeros(EMBEDDING_DIM, dtype=np.float32)
-        weighted_mean = np.zeros(EMBEDDING_DIM, dtype=np.float32)
-
-        for p in posteriors:
-            precision = 1.0 / p.variance
-            total_precision += precision
-            weighted_mean += precision * p.mean
-
-        combined_variance = 1.0 / total_precision
-        combined_mean = weighted_mean / total_precision
-
-        combined = EmbeddingPosterior(
-            mean=combined_mean,
-            variance=combined_variance,
-            total_weight=sum(p.total_weight for p in posteriors),
-            observation_count=sum(p.observation_count for p in posteriors),
-        )
-
-        return combined
+        return max(posteriors, key=lambda p: p.confidence)
 
     def context_confidence(self, context: dict[str, str]) -> float:
         """Get confidence for a specific context."""
@@ -364,6 +417,7 @@ class ContextualPosterior:
         return {
             "global": self.global_posterior.to_dict(),
             "contexts": {key: p.to_dict() for key, p in self.posteriors.items()},
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
         }
 
     @classmethod
@@ -374,4 +428,7 @@ class ContextualPosterior:
             cp.global_posterior = EmbeddingPosterior.from_dict(data["global"])
         if "contexts" in data:
             cp.posteriors = {key: EmbeddingPosterior.from_dict(p_data) for key, p_data in data["contexts"].items()}
+        last_updated = data.get("last_updated")
+        if last_updated:
+            cp.last_updated = datetime.fromisoformat(last_updated)
         return cp

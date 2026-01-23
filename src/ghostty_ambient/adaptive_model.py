@@ -24,7 +24,7 @@ import numpy as np
 from .bayesian_embedding import ContextualPosterior
 from .embeddings import EmbeddingIndex
 from .observations import Observation, ObservationStore
-from .phase_detector import Phase, PhaseDetector
+from .phase_detector import PHASE_CONFIGS, Phase, PhaseDetector
 
 # Storage version for migration
 STORAGE_VERSION = 3  # Bumped for Bayesian posterior addition
@@ -112,9 +112,10 @@ class AdaptivePreferenceModel:
         self.observations.add(obs)
 
         # Update Bayesian posterior
-        # Weight by recency (recent observations have more impact)
+        # Apply recency decay so older observations fade out
         config = self.phase_detector.get_config()
-        self.posterior.update(embedding.vector, context, weight=config.learning_rate)
+        self.posterior.apply_recency_decay(config.recency_half_life, now=obs.timestamp)
+        self.posterior.update(embedding.vector, context, weight=config.learning_rate, now=obs.timestamp)
 
         # Update phase detection
         self.phase_detector.detect_from_store(self.observations)
@@ -361,9 +362,12 @@ class AdaptivePreferenceModel:
 
     def _rebuild_posterior_from_observations(self) -> None:
         """Rebuild Bayesian posterior from stored observations."""
-        config = self.phase_detector.get_config()
-        for obs in self.observations.observations:
-            self.posterior.update(obs.embedding, obs.context, weight=config.learning_rate)
+        self.posterior = ContextualPosterior()
+        half_life_days = PHASE_CONFIGS[Phase.CONVERGE].recency_half_life
+        observations = sorted(self.observations.observations, key=lambda o: o.timestamp)
+        for obs in observations:
+            self.posterior.apply_recency_decay(half_life_days, now=obs.timestamp)
+            self.posterior.update(obs.embedding, obs.context, weight=1.0, now=obs.timestamp)
 
     def save(self, path: Path | None = None) -> None:
         """Save model to JSON file."""
