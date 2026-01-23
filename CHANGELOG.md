@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.8.3 (2026-01-23)
+
+### Bug Fixes
+
+- Compile ALS binary on-demand for uv tool install compatibility
+  ([`6471247`](https://github.com/gezibash/ghostty-ambient/commit/647124788f7131206b4541dd3a1a6cc06981d3e3))
+
+The macOS ALS sensor binary was only available in development mode because the path was hardcoded to
+  the project root. When installed via uv tool install, the binary wasn't found.
+
+Changes: - Move als.m source into the package (sensors/als.m) - Compile on-demand using clang when
+  binary not found - Cache compiled binary in ~/.cache/ghostty-ambient/als-{hash} - Auto-invalidate
+  cache when source changes using SHA256 hash
+
+- Remove broken diversity bonus that inverted recommendations
+  ([`f588e5d`](https://github.com/gezibash/ghostty-ambient/commit/f588e5d21c466c7657dad6cd1293afac09f37e54))
+
+The diversity bonus in EXPLORE phase was calculated as distance * 0.8 * 0.5, which gave the highest
+  bonus to themes FURTHEST from the user's ideal. This caused dark themes like Borland to score
+  78.3% in light mode despite being the most opposite theme (distance 195.7).
+
+The CLI already has a separate "explore" tab that properly handles theme discovery by showing
+  well-scoring themes the user hasn't tried much.
+
+
 ## v0.8.2 (2026-01-19)
 
 ### Bug Fixes
